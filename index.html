@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inventaire Scan</title>
+<meta name="theme-color" content="#2f4a63">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout : application mobile d'abord — barre d'état en haut, une vue à la fois, onglets en bas (pouce). */
+:root{
+  --bg:#eef0f2; --surface:#ffffff; --ink:#1b2128; --muted:#5d6874; --line:#d5dade;
+  --accent:#f2b705; --accent-ink:#1b2128; --steel:#2f4a63;
+  --ok:#1f8a4c; --warn:#b86e00; --bad:#c23a2b; --okbg:#e3f3ea; --warnbg:#fff2d6; --badbg:#fbe5e2;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:10px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12161b; --surface:#1b2128; --ink:#e7eaee; --muted:#9aa6b2; --line:#2e3741;
+  --accent:#f2b705; --accent-ink:#12161b; --steel:#8fb3d4;
+  --ok:#4cc27f; --warn:#f0a63a; --bad:#ff7a69; --okbg:#173326; --warnbg:#3a2c12; --badbg:#3d1d19; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#12161b; --surface:#1b2128; --ink:#e7eaee; --muted:#9aa6b2; --line:#2e3741;
+  --accent:#f2b705; --accent-ink:#12161b; --steel:#8fb3d4;
+  --ok:#4cc27f; --warn:#f0a63a; --bad:#ff7a69; --okbg:#173326; --warnbg:#3a2c12; --badbg:#3d1d19; color-scheme:dark;}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.45 var(--f-body);display:flex;flex-direction:column}
+h1,h2,h3{text-wrap:balance;margin:0;line-height:1.2}
+h2{font-size:18px} h3{font-size:15px}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--f-mono)}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.hidden{display:none!important}
+
+/* barre haute */
+.top{background:var(--steel);color:#fff;padding:10px 16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+:root[data-theme="dark"] .top{background:#1f3347}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .top{background:#1f3347}}
+.brand{display:flex;align-items:center;gap:8px;font-weight:700;letter-spacing:.02em;margin-right:auto}
+.brand i{display:inline-block;width:14px;height:14px;background:repeating-linear-gradient(135deg,var(--accent) 0 4px,#1b2128 4px 8px);border-radius:3px}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.08);color:#fff;border-radius:999px;padding:4px 10px;font-size:13px;cursor:pointer;max-width:100%}
+.chip b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
+.chip.static{cursor:default}
+.chip.need{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+
+main{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:14px}
+.wrap{max-width:980px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+
+/* onglets */
+.tabs{display:grid;grid-template-columns:repeat(5,1fr);background:var(--surface);border-top:1px solid var(--line)}
+.tabs button{border:0;background:none;padding:10px 4px 12px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;border-top:3px solid transparent}
+.tabs button svg{width:22px;height:22px}
+.tabs button[aria-current="page"]{color:var(--ink);border-top-color:var(--accent)}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:10px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.between{justify-content:space-between}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:9px 14px;cursor:pointer;font-weight:600;text-align:center}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+.btn.ghost{border-color:transparent;background:none}
+.btn.sm{padding:5px 10px;font-size:13px}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.big{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:16px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);cursor:pointer;text-align:left}
+.big strong{font-size:16px}
+.big.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.big.primary .muted{color:inherit;opacity:.8}
+.big svg{width:26px;height:26px}
+label.big input{display:none}
+
+label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;color:var(--muted)}
+input[type=text],input[type=number],input[type=search],input[type=date],select,textarea{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:9px 10px;color:var(--ink);font-weight:400;font-size:15px}
+textarea{min-height:70px;resize:vertical}
+.check{display:flex;gap:8px;align-items:center;font-size:14px}
+
+.pill{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:2px 8px;font-size:12px;font-weight:600;white-space:nowrap}
+.pill.ok{background:var(--okbg);color:var(--ok)} .pill.warn{background:var(--warnbg);color:var(--warn)} .pill.bad{background:var(--badbg);color:var(--bad)}
+.pill.n{background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+
+.alert{border-left:4px solid var(--warn);background:var(--warnbg);padding:10px 12px;border-radius:6px;font-size:14px}
+.alert.bad{border-color:var(--bad);background:var(--badbg)}
+.alert.ok{border-color:var(--ok);background:var(--okbg)}
+.alert.info{border-color:var(--steel);background:var(--bg)}
+
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;border-top:4px solid var(--line)}
+.tile .v{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}
+.tile .l{font-size:12px;color:var(--muted);font-weight:600}
+.tile.bad{border-top-color:var(--bad)} .tile.warn{border-top-color:var(--warn)} .tile.ok{border-top-color:var(--ok)}
+
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{background:var(--bg);font-weight:600;color:var(--muted);white-space:nowrap;position:sticky;top:0}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:0}
+.thumb{width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--line);display:block}
+
+.zone-card{display:flex;gap:12px;align-items:flex-start}
+.zone-card .ph{display:flex;gap:4px;flex-wrap:wrap}
+.zone-card.cur{outline:2px solid var(--accent)}
+
+/* modale */
+.modal{position:fixed;inset:0;background:rgba(10,14,18,.55);display:flex;align-items:flex-end;justify-content:center;z-index:20}
+@media (min-width:760px){.modal{align-items:center}}
+.sheet{background:var(--surface);width:100%;max-width:980px;max-height:94%;overflow:auto;border-radius:14px 14px 0 0;padding:16px;display:flex;flex-direction:column;gap:12px}
+@media (min-width:760px){.sheet{border-radius:14px;max-height:90%}}
+.sheet-head{display:flex;justify-content:space-between;align-items:center;gap:8px;position:sticky;top:-16px;background:var(--surface);padding:4px 0 8px;border-bottom:1px solid var(--line);z-index:2}
+.val{display:grid;grid-template-columns:1fr;gap:14px}
+@media (min-width:760px){.val{grid-template-columns:minmax(260px,1fr) 1.3fr}}
+.val .pics{display:flex;flex-direction:column;gap:8px}
+.val .pics img{width:100%;border-radius:8px;border:1px solid var(--line);background:#000;max-height:360px;object-fit:contain;cursor:zoom-in}
+.val .pics img.zoom{max-height:none;cursor:zoom-out}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.fld input.low{border-color:var(--warn);background:var(--warnbg)}
+.fld input.missing{border-color:var(--bad)}
+.fld .hint{font-weight:400;font-size:11px}
+.fld{justify-content:flex-end}
+.spinner{width:28px;height:28px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spinner{animation:none}}
+.codes{font-family:var(--f-mono);font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;word-break:break-all}
+details summary{cursor:pointer;font-size:13px;color:var(--muted);font-weight:600}
+.dlg{position:fixed;inset:0;background:rgba(10,14,18,.55);display:flex;align-items:center;justify-content:center;z-index:40;padding:16px}
+.dlg .box{background:var(--surface);border-radius:12px;padding:16px;max-width:420px;width:100%;display:flex;flex-direction:column;gap:12px}
+.auth{position:fixed;inset:0;background:var(--bg);z-index:60;display:flex;align-items:center;justify-content:center;padding:16px}
+.auth .box{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px;max-width:400px;width:100%;display:flex;flex-direction:column;gap:12px}
+.auth .brand{color:var(--ink);font-size:20px}
+td select{min-width:150px}
+#toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);z-index:50;display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none}
+#toast div{background:var(--ink);color:var(--surface);padding:9px 14px;border-radius:8px;font-size:14px;max-width:90vw}
+#toast div.bad{background:var(--bad);color:#fff}
+.stripe{height:6px;background:repeating-linear-gradient(135deg,var(--accent) 0 10px,var(--ink) 10px 20px);border-radius:3px;opacity:.85}
+.famrow{display:grid;grid-template-columns:1.4fr 1.6fr auto auto auto;gap:6px;align-items:center}
+@media (max-width:600px){.famrow{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<header class="top" id="top"></header>
+<main id="view"></main>
+<nav class="tabs" id="tabs" aria-label="Navigation">
+  <button data-v="scan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M7 12h10"/></svg>Scanner</button>
+  <button data-v="zones"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg>Zones</button>
+  <button data-v="liste"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Comptage</button>
+  <button data-v="analyse"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>Analyse</button>
+  <button data-v="reglages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Réglages</button>
+</nav>
+<div id="modal" class="modal hidden" role="dialog" aria-modal="true"><div class="sheet" id="sheet"></div></div>
+<div id="dlg" class="dlg hidden" role="alertdialog" aria-modal="true"><div class="box" id="dlgbox"></div></div>
+<div id="toast" aria-live="polite"></div>
+<div id="auth" class="auth"><div class="box"><div class="brand"><i></i>Inventaire Scan</div><div id="authBody"><div class="row"><div class="spinner"></div><span>Connexion…</span></div></div></div></div>
+
+<script>
+"use strict";
+/* ================= utilitaires ================= */
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const norm=s=>String(s??'').toUpperCase().replace(/[\s\-_.\/\\:]/g,'');
+const slug=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'').slice(0,40)||'champ';
+const fmtDate=iso=>{try{const d=new Date(iso);return d.toLocaleDateString('fr-FR')+' '+d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}catch{return ''}};
+const LS={get(k,d){try{const v=localStorage.getItem('invscan_'+k);return v==null?d:JSON.parse(v)}catch{return d}},set(k,v){try{localStorage.setItem('invscan_'+k,JSON.stringify(v))}catch{}}};
+function toast(msg,kind){const t=document.createElement('div');t.textContent=msg;if(kind)t.className=kind;$('#toast').appendChild(t);setTimeout(()=>t.remove(),4200)}
+const loaded={};
+function loadScript(src){return loaded[src]||(loaded[src]=new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>{delete loaded[src];rej(new Error('Bibliothèque non chargée (connexion ?)'))};document.head.appendChild(s)}))}
+const LIB={xlsx:'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+  pdf:'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+  pdfw:'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
+  zxing:'https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js'};
+
+/* dialogue de confirmation (confirm() est bloqué) */
+function ask(msg,ok='Confirmer',danger=false){return new Promise(res=>{const box=$('#dlgbox');box.innerHTML=`<div>${esc(msg)}</div><div class="row" style="justify-content:flex-end"><button class="btn" id="dlgNo">Annuler</button><button class="btn ${danger?'danger':'primary'}" id="dlgOk">${esc(ok)}</button></div>`;$('#dlg').classList.remove('hidden');const done=v=>{$('#dlg').classList.add('hidden');res(v)};$('#dlgNo').onclick=()=>done(false);$('#dlgOk').onclick=()=>done(true);$('#dlgOk').focus()})}
+
+/* ================= état ================= */
+const S={mode:'local',db:null,user:null,uid:null,canEdit:false,isOwner:false,sample:null,aiImages:false,assets:null,downloads:null,
+  families:[],zones:[],sessions:[],scans:[],roles:[],users:[],names:{},
+  view:'scan',session:LS.get('session',null),zone:LS.get('zone',null),scanFamily:LS.get('scanFamily','auto'),enhance:LS.get('enhance',false),
+  localRole:LS.get('localRole','admin'),localName:LS.get('localName',''),
+  queue:[],qi:0,filters:{zone:'',fam:'',agent:'',q:'',alerts:false},theo:null,theoRaw:null,map:null,anaSession:null,loadNote:'',unsubs:[]};
+
+const GENERIC={id:'generique',name:'Générique',order:99,
+  fields:[{key:'reference',label:'Référence'},{key:'designation',label:'Désignation'},{key:'marque',label:'Marque'},{key:'gtin',label:'Code article (EAN / GTIN)'},{key:'lot',label:'N° de lot'},{key:'serie',label:'N° de série',unique:true},{key:'date_fab',label:'Date de fabrication'},{key:'date_exp',label:'Date de péremption'},{key:'poids_net',label:'Poids net / contenance'},{key:'qte_carton',label:'Nombre de pièces par carton',hints:['Contenu','pièces','PCS','Qté','x24','paires']}],
+  questions:['Que voyez-vous écrit sur le produit ou le carton ?','Marque ou fabricant visible ?']};
+const LIMITE=9000, SUPA={server:'Supabase',project:'anvzffkueynavskbpgna'};
+const totalDocs=()=>S.scans.length;
+function placeOk(n=1){const t=totalDocs();if(t+n>LIMITE){toast(`Limite de ${LIMITE} enregistrements atteinte (${t}). Prévenez l'administrateur : il faut exporter puis supprimer d'anciens comptages.`,'bad');return false}
+  if(t+n>LIMITE*0.9&&!S.warned90){S.warned90=true;toast(`Attention : ${t} enregistrements sur ${LIMITE}. Pensez à envoyer et libérer les anciennes sessions.`)}return true}
+const ROLES={compteur:'Compteur',magasinier:'Magasinier',gestionnaire:'Gestionnaire du stock',admin:'Administrateur'};
+const MOVES={inventaire:'Inventaire (comptage)',entree:'Entrée en stock',sortie:'Sortie de stock',transfert:'Transfert'};
+
+function families(){const f=[...S.families].sort((a,b)=>(a.order??50)-(b.order??50)||String(a.name).localeCompare(b.name));if(!f.some(x=>x.id==='generique'))f.push(GENERIC);return f}
+const famById=id=>families().find(f=>f.id===id)||GENERIC;
+const zoneById=id=>S.zones.find(z=>z.id===id);
+const sessById=id=>S.sessions.find(s=>s.id===id);
+function role(){if(S.mode==='supabase')return S.profil?.role||'compteur';if(S.mode==='local')return S.localRole;if(S.canEdit)return 'admin';const r=S.roles.find(r=>r.id===S.uid);return r?.role||'compteur'}
+const canManage=()=>['admin','gestionnaire','magasinier'].includes(role());
+const isAdmin=()=>role()==='admin';
+function who(scan){if(scan.byName)return scan.byName;if(scan.by)return S.names[scan.by]||'Agent';return '—'}
+const uniqueKeys=fam=>(fam.fields||[]).filter(f=>f.unique).map(f=>f.key);
+
+/* ================= stockage ================= */
+const COLS={families:'inv_families',zones:'inv_zones',sessions:'inv_sessions',scans:'inv_scans',roles:'inv_roles',users:'inv_users'};
+const Store={
+  local:{},
+  loadLocal(){this.local=LS.get('local_v1',{})||{};for(const k in COLS)S[k]=Object.values(this.local[k]||{})},
+  saveLocal(){try{localStorage.setItem('invscan_local_v1',JSON.stringify(this.local))}catch(e){toast('Mémoire locale pleine : exportez une sauvegarde puis supprimez des comptages.','bad')}},
+  subscribe(){
+    for(const [k,col] of Object.entries(COLS)){
+      let t=setTimeout(()=>{S.loadNote='Les données partagées ne répondent pas encore. Vérifiez la connexion Internet.';scheduleRender()},10000);
+      const un=S.db.collection(col).onSnapshot(snap=>{
+        if(!snap.metadata.fromCache&&t){clearTimeout(t);t=null;if(S.loadNote){S.loadNote='';}}
+        S[k]=snap.docs.map(d=>({id:d.id,...d.data()}));
+        if(k==='scans'||k==='users')resolveNames();
+        if(k==='sessions'&&(!snap.metadata.fromCache||snap.size))pickDefaultSession();
+        scheduleRender();
+      },err=>{if(t)clearTimeout(t);console.warn(col,err);if(err.code==='revoked'){S.loadNote='Accès aux données partagées retiré.';scheduleRender()}});
+      S.unsubs.push(un);
+    }
+  },
+  async put(k,obj){
+    if(S.mode==='supabase')return SBStore.put(k,obj);
+    const id=obj.id||uid();const body={...obj};delete body.id;
+    if(S.db){
+      try{await S.db.collection(COLS[k]).doc(id).set(body)}
+      catch(e){if(e.code==='unavailable'){await new Promise(r=>setTimeout(r,600+Math.random()*800));await S.db.collection(COLS[k]).doc(id).set(body)}
+        else{throw e}}
+    }else{(this.local[k]||(this.local[k]={}))[id]={id,...body};this.saveLocal();S[k]=Object.values(this.local[k]);scheduleRender()}
+    return id;
+  },
+  async del(k,id){if(S.mode==='supabase')return SBStore.del(k,id);if(S.db)await S.db.collection(COLS[k]).doc(id).delete();else{delete (this.local[k]||{})[id];this.saveLocal();S[k]=Object.values(this.local[k]||{});scheduleRender()}}
+};
+function dbErr(e){if(e?.code==='limite')return;const m={quota_exceeded:'Base de données pleine : exportez puis supprimez d’anciennes sessions.',invalid_argument:'Votre accès ne permet pas cette modification (droits insuffisants ou donnée trop lourde).',resource_exhausted:'Trop d’opérations en même temps, réessayez dans quelques secondes.'};toast(m[e?.code]||('Enregistrement impossible : '+(e?.message||e)),'bad')}
+
+async function resolveNames(){
+  if(!S.user?.profiles)return;
+  const ids=[...new Set([...S.scans.map(s=>s.by),...S.users.map(u=>u.id)].filter(id=>id&&!(id in S.names)))];
+  if(!ids.length)return;
+  try{const ps=await S.user.profiles(ids);for(const id of ids)S.names[id]=(ps?.[id]?.name)||'Agent';scheduleRender()}catch{}
+}
+function pickDefaultSession(){
+  if(S.session&&sessById(S.session))return;
+  const open=S.sessions.filter(s=>s.status!=='cloturee').sort((a,b)=>String(b.at).localeCompare(String(a.at)));
+  S.session=open[0]?.id||null;LS.set('session',S.session);
+}
+
+/* ================= rendu ================= */
+let rq=false;
+function scheduleRender(){if(rq)return;rq=true;requestAnimationFrame(()=>{rq=false;const a=document.activeElement;if(a&&$('#view').contains(a)&&/INPUT|TEXTAREA|SELECT/.test(a.tagName)){S.pending=true;renderTop();return}render()})}
+document.addEventListener('focusout',()=>{if(S.pending){S.pending=false;setTimeout(()=>{const a=document.activeElement;if(!(a&&$('#view').contains(a)&&/INPUT|TEXTAREA|SELECT/.test(a.tagName)))render();else S.pending=true},50)}});
+function go(v){S.view=v;if(location.hash!=='#'+v)history.replaceState(null,'','#'+v);render()}
+window.addEventListener('hashchange',()=>{const v=location.hash.slice(1);if(VIEWS[v]&&v!==S.view){S.view=v;render()}});
+$$('#tabs button').forEach(b=>b.onclick=()=>go(b.dataset.v));
+
+function renderTop(){
+  const s=sessById(S.session),z=zoneById(S.zone);
+  $('#top').innerHTML=`<div class="brand"><i></i>Inventaire Scan</div>
+   <button class="chip ${s?'':'need'}" id="tSess" title="Session d'inventaire">Session : <b>${s?esc(s.name):'à choisir'}</b></button>
+   <button class="chip ${z?'':'need'}" id="tZone" title="Zone de comptage">Zone : <b>${z?esc(z.code||z.name):'à choisir'}</b></button>
+   <span class="chip static">${esc(ROLES[role()])}</span>
+   <button class="chip" id="tMe" title="Mon compte">${esc(S.profil?.nom||'Mon compte')}</button>
+   <span class="chip static" title="Lecture des photos par IA">${S.sample?'IA active':'IA indisponible'}</span>`;
+  $('#tSess').onclick=openSessions;$('#tZone').onclick=()=>go('zones');$('#tMe')&&($('#tMe').onclick=openMonCompte);
+}
+function render(){
+  renderTop();
+  $$('#tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.v===S.view?'page':'false'));
+  const v=$('#view');
+  v.innerHTML=`<div class="wrap">${S.loadNote?`<div class="alert">${esc(S.loadNote)}</div>`:''}${VIEWS[S.view]()}</div>`;
+  (BIND[S.view]||(()=>{}))();
+}
+
+const ICON={cam:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h3l2-3h6l2 3h3v12H4z"/><circle cx="12" cy="13" r="4"/></svg>',
+  img:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></svg>',
+  q:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></svg>'};
+
+/* ---------- vue Scanner ---------- */
+function scansOf(sess,zone){return S.scans.filter(x=>x.sessionId===sess&&(!zone||x.zoneId===zone))}
+function flagPills(s){return (s.flags||[]).map(f=>f==='doublon'?'<span class="pill bad">Doublon</span>':f==='autre_zone'?'<span class="pill warn">N° vu dans une autre zone</span>':f==='incomplet'?'<span class="pill warn">Incomplet</span>':f==='sans_etiquette'?'<span class="pill n">Sans étiquette</span>':f==='non_conforme'?'<span class="pill bad">Non conforme</span>':f==='meme_photo'?'<span class="pill bad">Même photo</span>':'').join(' ')}
+function scanLine(s){const fam=famById(s.familyId);const f=s.fields||{};const id=uniqueKeys(fam).map(k=>f[k]).find(Boolean)||f.lot||'';
+  return `<div class="row between" style="border-bottom:1px solid var(--line);padding:6px 0">
+   <div class="row" style="flex-wrap:nowrap;min-width:0">${s.thumb?`<img class="thumb" src="${esc(s.thumb)}" alt="">`:''}<div style="min-width:0"><div><b>${esc(f.reference||f.designation||fam.name)}</b> <span class="mono small">${esc(id)}</span></div><div class="small muted">${esc(fam.name)} · ${esc(qtyTxt(s))} · ${esc(fmtDate(s.at))}</div></div></div>
+   <div>${flagPills(s)}</div></div>`}
+const VIEWS={};const BIND={};
+VIEWS.scan=()=>{
+  const s=sessById(S.session),z=zoneById(S.zone);
+  if(!s)return `<div class="card"><h2>Commencez par une session d'inventaire</h2><p class="muted">Une session regroupe tous les comptages d'une opération (inventaire annuel, entrée, sortie, transfert).</p><div><button class="btn primary" id="goSess">Choisir ou créer une session</button></div></div>`;
+  if(s.status==='cloturee'||s.archived)return `<div class="card"><h2>La session « ${esc(s.name)} » est ${s.archived?'archivée dans Supabase':'clôturée'}</h2><p class="muted">Choisissez une session ouverte pour scanner.</p><div><button class="btn primary" id="goSess">Changer de session</button></div></div>`;
+  if(!z)return `<div class="card"><h2>Identifiez d'abord la zone de comptage</h2><p class="muted">Chaque produit scanné est rattaché à une zone. Choisissez une zone existante ou créez-la en photographiant ou filmant ses limites.</p>
+     <div class="grid2">${S.zones.map(z=>`<button class="big" data-zone="${esc(z.id)}"><strong>${esc(z.name)}</strong><span class="muted small">${esc(z.code||'')} ${esc(z.description||'')}</span></button>`).join('')}
+     <button class="big primary" id="newZone"><strong>+ Nouvelle zone</strong><span class="muted small">Nom, photos ou vidéo des limites</span></button></div></div>`;
+  const fams=families();const recent=scansOf(S.session,S.zone).sort((a,b)=>String(b.at).localeCompare(String(a.at))).slice(0,8);
+  return `<div class="stripe"></div>
+  <div class="card">
+    <div class="row between"><div><div class="small muted">Vous comptez dans</div><h2>${esc(z.name)} <span class="mono muted small">${esc(z.code||'')}</span></h2></div><span class="pill n">${scansOf(S.session,S.zone).length} scans dans cette zone</span></div>
+    <div class="grid2">
+      <label class="f">Famille de produit<select id="scanFam"><option value="auto">Détection automatique${S.sample?' (IA)':''}</option>${fams.map(f=>`<option value="${esc(f.id)}" ${S.scanFamily===f.id?'selected':''}>${esc(f.name)}</option>`).join('')}</select></label>
+      <label class="check" style="align-self:end"><input type="checkbox" id="enh" ${S.enhance?'checked':''}> Plaque gravée ou métal : renforcer le contraste</label>
+    </div>
+  </div>
+  <div class="grid2">
+    <label class="big primary">${ICON.cam}<strong>Photographier une plaque ou une étiquette</strong><span class="muted small">Ouvre l'appareil photo du téléphone</span><input type="file" accept="image/*" capture="environment" id="inCam"></label>
+    <label class="big">${ICON.img}<strong>Importer des photos déjà prises</strong><span class="muted small">Plusieurs à la fois, traitées une par une</span><input type="file" accept="image/*" multiple id="inMulti"></label>
+    <button class="big" id="noLabel">${ICON.q}<strong>Produit sans plaque ni étiquette</strong><span class="muted small">Questions + photo du produit ou du carton</span></button>
+  </div>
+  ${S.sample?'':`<div class="alert info small">La lecture automatique par IA n'est pas disponible ici : les codes-barres et QR codes sont lus automatiquement, les autres champs se saisissent à la main.</div>`}
+  <div class="card"><div class="row between"><h3>Derniers scans de la zone</h3><button class="btn sm ghost" id="seeAll">Tout voir</button></div>
+   ${recent.length?recent.map(scanLine).join(''):'<p class="muted small">Aucun produit scanné dans cette zone pour le moment.</p>'}</div>`;
+};
+BIND.scan=()=>{
+  $('#goSess')&&($('#goSess').onclick=openSessions);
+  $$('[data-zone]').forEach(b=>b.onclick=()=>{S.zone=b.dataset.zone;LS.set('zone',S.zone);render()});
+  $('#newZone')&&($('#newZone').onclick=()=>openZone());
+  if(!$('#scanFam'))return;
+  $('#scanFam').onchange=e=>{S.scanFamily=e.target.value;LS.set('scanFamily',S.scanFamily)};
+  $('#enh').onchange=e=>{S.enhance=e.target.checked;LS.set('enhance',S.enhance)};
+  $('#inCam').onchange=e=>{const f=[...e.target.files];e.target.value='';if(f.length)startQueue(f)};
+  $('#inMulti').onchange=e=>{const f=[...e.target.files];e.target.value='';if(f.length)startQueue(f)};
+  $('#noLabel').onclick=openNoLabel;$('#seeAll').onclick=()=>go('liste');
+};
+
+/* ---------- vue Zones ---------- */
+VIEWS.zones=()=>`<div class="row between"><h2>Zones de comptage</h2><button class="btn primary" id="newZone">+ Nouvelle zone</button></div>
+  <p class="muted small">Choisissez la zone avant de scanner. Chaque zone garde les photos ou la vidéo de ses limites pour que tout le monde compte au même endroit.</p>
+  ${S.zones.length?S.zones.slice().sort((a,b)=>String(a.code||a.name).localeCompare(String(b.code||b.name))).map(z=>`<div class="card zone-card ${z.id===S.zone?'cur':''}">
+    <div class="ph">${(z.thumbs||[]).slice(0,3).map(t=>`<img class="thumb" src="${esc(t)}" alt="">`).join('')||'<div class="thumb" style="background:var(--bg)"></div>'}</div>
+    <div style="flex:1;min-width:0"><h3>${esc(z.name)} <span class="mono muted small">${esc(z.code||'')}</span></h3><div class="small muted">${esc(z.description||'')}</div>
+      <div class="small">${scansOf(S.session,z.id).length} scans dans la session · ${z.videoId?'<a href="#" data-blob="'+esc(z.videoId)+'">vidéo des limites</a>':'pas de vidéo'}</div></div>
+    <div class="row">${z.id===S.zone?'<span class="pill ok">Zone actuelle</span>':`<button class="btn sm primary" data-pick="${esc(z.id)}">Compter ici</button>`}${canManage()?`<button class="btn sm" data-edit="${esc(z.id)}">Modifier</button>`:''}</div></div>`).join(''):'<div class="card"><p class="muted">Aucune zone. Créez la première, par exemple « Magasin A – Allée 3 ».</p></div>'}`;
+BIND.zones=()=>{$('#newZone').onclick=()=>openZone();$$('[data-pick]').forEach(b=>b.onclick=()=>{S.zone=b.dataset.pick;LS.set('zone',S.zone);go('scan')});$$('[data-edit]').forEach(b=>b.onclick=()=>openZone(zoneById(b.dataset.edit)))};
+
+/* ---------- vue Comptage ---------- */
+const agentKey=s=>s.by||('n:'+(s.byName||'?'));
+function byAgent(list){const m={};for(const s of list){const k=agentKey(s);const a=m[k]||(m[k]={k,nom:who(s),scans:0,pieces:0,zones:new Set(),alertes:0,premier:s.at,dernier:s.at});a.scans++;a.pieces+=pieces(s);a.zones.add(zoneById(s.zoneId)?.code||zoneById(s.zoneId)?.name||'?');if((s.flags||[]).some(f=>f!=='sans_etiquette'))a.alertes++;if(String(s.at)<String(a.premier))a.premier=s.at;if(String(s.at)>String(a.dernier))a.dernier=s.at}return Object.values(m).sort((a,b)=>b.pieces-a.pieces)}
+function filteredScans(){const F=S.filters,q=norm(F.q);return scansOf(S.session).filter(s=>(!F.zone||s.zoneId===F.zone)&&(!F.agent||agentKey(s)===F.agent)&&(!F.fam||s.familyId===F.fam)&&(!F.alerts||(s.flags||[]).some(f=>f!=='sans_etiquette'))&&(!q||norm(Object.values(s.fields||{}).join(' ')+' '+(s.note||'')).includes(q))).sort((a,b)=>String(b.at).localeCompare(String(a.at)))}
+VIEWS.liste=()=>{
+  if(!sessById(S.session))return `<div class="card"><p>Choisissez une session pour voir ses comptages.</p><div><button class="btn primary" id="goSess">Choisir une session</button></div></div>`;
+  const all=scansOf(S.session),list=filteredScans(),F=S.filters;
+  const qty=all.reduce((a,s)=>a+pieces(s),0),dbl=all.filter(s=>(s.flags||[]).includes('doublon')).length,oz=all.filter(s=>(s.flags||[]).includes('autre_zone')).length,inc=all.filter(s=>(s.flags||[]).includes('incomplet')).length;
+  return `<div class="tiles"><div class="tile"><div class="v">${all.length}</div><div class="l">Scans</div></div><div class="tile"><div class="v">${qty}</div><div class="l">Pièces comptées</div></div>
+   <div class="tile ${dbl?'bad':'ok'}"><div class="v">${dbl}</div><div class="l">Doublons signalés</div></div><div class="tile ${oz?'warn':'ok'}"><div class="v">${oz}</div><div class="l">N° vus dans 2 zones</div></div><div class="tile ${inc?'warn':'ok'}"><div class="v">${inc}</div><div class="l">Fiches incomplètes</div></div></div>
+  <div class="card"><div class="grid2">
+    <label class="f">Zone<select id="fZone"><option value="">Toutes</option>${S.zones.map(z=>`<option value="${esc(z.id)}" ${F.zone===z.id?'selected':''}>${esc(z.code||z.name)}</option>`).join('')}</select></label>
+    <label class="f">Famille<select id="fFam"><option value="">Toutes</option>${families().map(f=>`<option value="${esc(f.id)}" ${F.fam===f.id?'selected':''}>${esc(f.name)}</option>`).join('')}</select></label>
+    <label class="f">Agent<select id="fAg"><option value="">Tous</option>${byAgent(all).map(a=>`<option value="${esc(a.k)}" ${F.agent===a.k?'selected':''}>${esc(a.nom)}</option>`).join('')}</select></label>
+    <label class="f">Rechercher (réf., lot, série…)<input type="search" id="fQ" value="${esc(F.q)}"></label>
+    <label class="check" style="align-self:end"><input type="checkbox" id="fAl" ${F.alerts?'checked':''}> Alertes seulement</label></div>
+    <div class="row"><button class="btn sm" id="xlsScans">Exporter en Excel</button><span class="small muted">${list.length} ligne(s) affichée(s)</span></div></div>
+  <div class="card"><h3>Comptage par agent</h3><div class="tbl-wrap"><table><thead><tr><th>Agent</th><th class="num">Scans</th><th class="num">Pièces</th><th>Zones</th><th class="num">Alertes</th><th>Premier scan</th><th>Dernier scan</th></tr></thead><tbody>
+   ${byAgent(all).map(a=>`<tr><td><button class="btn sm ghost" data-ag="${esc(a.k)}">${esc(a.nom)}</button></td><td class="num">${a.scans}</td><td class="num">${a.pieces}</td><td>${esc([...a.zones].join(' · '))}</td><td class="num">${a.alertes}</td><td class="small">${esc(fmtDate(a.premier))}</td><td class="small">${esc(fmtDate(a.dernier))}</td></tr>`).join('')||'<tr><td colspan="7" class="muted">Aucun comptage.</td></tr>'}
+  </tbody></table></div></div>
+  <div class="tbl-wrap"><table><thead><tr><th>Photo</th><th>Famille</th><th>Référence</th><th>Désignation</th><th>N° lot</th><th>N° série</th><th class="num">Qté</th><th>Zone</th><th>Agent</th><th>Date</th><th>Alertes</th><th></th></tr></thead><tbody>
+  ${list.map(s=>{const f=s.fields||{},fam=famById(s.familyId),z=zoneById(s.zoneId);const ser=uniqueKeys(fam).filter(k=>k!=='lot').map(k=>f[k]).filter(Boolean).join(' / ');const mine=s.by&&s.by===S.uid;
+   return `<tr><td>${s.thumb?`<img class="thumb" src="${esc(s.thumb)}" alt="">`:''}</td><td>${esc(fam.name)}</td><td class="mono">${esc(f.reference||'')}</td><td>${esc(f.designation||(f.marquage?'Marquage : '+f.marquage:'')||f.marque||'')}</td><td class="mono">${esc(f.lot||'')}</td><td class="mono">${esc(ser)}</td><td class="num">${esc(qtyTxt(s))}</td><td>${esc(z?.code||z?.name||'?')}</td><td>${esc(who(s))}</td><td class="small">${esc(fmtDate(s.at))}</td><td>${flagPills(s)}</td>
+   <td>${(canManage()||mine)?`<div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-ed="${esc(s.id)}">Modifier</button><button class="btn sm danger" data-del="${esc(s.id)}" aria-label="Supprimer">✕</button></div>`:''}</td></tr>`}).join('')||'<tr><td colspan="12" class="muted">Aucun comptage.</td></tr>'}
+  </tbody></table></div>`;
+};
+BIND.liste=()=>{
+  $('#goSess')&&($('#goSess').onclick=openSessions);if(!$('#fZone'))return;
+  $('#fZone').onchange=e=>{S.filters.zone=e.target.value;render()};$('#fAg').onchange=e=>{S.filters.agent=e.target.value;render()};
+  $$('[data-ag]').forEach(b=>b.onclick=()=>{S.filters.agent=b.dataset.ag;render()});$('#fFam').onchange=e=>{S.filters.fam=e.target.value;render()};
+  $('#fAl').onchange=e=>{S.filters.alerts=e.target.checked;render()};
+  let tm;$('#fQ').oninput=e=>{clearTimeout(tm);tm=setTimeout(()=>{S.filters.q=e.target.value;render();const i=$('#fQ');i.focus();i.setSelectionRange(i.value.length,i.value.length)},350)};
+  $('#xlsScans').onclick=exportScans;
+  $$('[data-ed]').forEach(b=>b.onclick=()=>{const s=S.scans.find(x=>x.id===b.dataset.ed);if(s)openValidation({edit:s})});
+  $$('[data-del]').forEach(b=>b.onclick=async()=>{if(await ask('Supprimer ce comptage ?','Supprimer',true)){try{await Store.del('scans',b.dataset.del);toast('Comptage supprimé')}catch(e){dbErr(e)}}});
+};
+
+/* ================= sessions ================= */
+function openSessions(){
+  const list=S.sessions.slice().sort((a,b)=>String(b.at).localeCompare(String(a.at)));
+  openModal(`<div class="sheet-head"><h2>Sessions d'inventaire</h2><button class="btn ghost" data-close>Fermer</button></div>
+   <div class="card"><h3>Nouvelle session</h3><div class="grid2"><label class="f">Nom<input type="text" id="sName" value="Inventaire ${new Date().toLocaleDateString('fr-FR')}"></label>
+     <label class="f">Type d'opération<select id="sType">${Object.entries(MOVES).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></label></div>
+     <div><button class="btn primary" id="sAdd">Créer et utiliser</button></div></div>
+   ${list.map(s=>`<div class="card"><div class="row between"><div><h3>${esc(s.name)}</h3><div class="small muted">${esc(MOVES[s.type]||'')} · ouverte le ${esc(fmtDate(s.at))} · ${scansOf(s.id).length} scans</div></div>
+     <div class="row">${s.status==='cloturee'?'<span class="pill n">Clôturée</span>':'<span class="pill ok">Ouverte</span>'}
+     ${s.id===S.session?'<span class="pill warn">Utilisée</span>':`<button class="btn sm primary" data-use="${esc(s.id)}">Utiliser</button>`}
+     ${canManage()?`<button class="btn sm" data-tog="${esc(s.id)}">${s.status==='cloturee'?'Rouvrir':'Clôturer'}</button>`:''}</div></div></div>`).join('')}`);
+  $('#sAdd').onclick=async()=>{const name=$('#sName').value.trim();if(!name)return toast('Donnez un nom à la session','bad');const btn=$('#sAdd');if(btn.disabled)return;btn.disabled=true;
+    try{const id=await Store.put('sessions',{name,type:$('#sType').value,status:'ouverte',at:new Date().toISOString(),by:S.uid||null});S.session=id;LS.set('session',id);closeModal();render();toast('Session créée')}catch(e){dbErr(e);btn.disabled=false}};
+  $$('[data-use]').forEach(b=>b.onclick=()=>{S.session=b.dataset.use;LS.set('session',S.session);closeModal();render()});
+  $$('[data-tog]').forEach(b=>b.onclick=async()=>{const s=sessById(b.dataset.tog);try{await Store.put('sessions',{...s,status:s.status==='cloturee'?'ouverte':'cloturee'});openSessions()}catch(e){dbErr(e)}});
+}
+
+/* ================= modale ================= */
+function openModal(html){$('#sheet').innerHTML=html;$('#modal').classList.remove('hidden');$$('[data-close]',$('#sheet')).forEach(b=>b.onclick=closeModal)}
+function closeModal(){$('#modal').classList.add('hidden');$('#sheet').innerHTML='';if(S.pending){S.pending=false;render()}}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#dlg').classList.contains('hidden'))return;if(e.key==='Escape'&&!$('#modal').classList.contains('hidden')&&!S.busy)closeModal()});
+
+/* ================= images ================= */
+async function loadBitmap(file){try{return await createImageBitmap(file,{imageOrientation:'from-image'})}catch{return await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('Image illisible'));i.src=URL.createObjectURL(file)})}}
+function scaled(src,max){const w=src.width,h=src.height,k=Math.min(1,max/Math.max(w,h));const c=document.createElement('canvas');c.width=Math.max(1,Math.round(w*k));c.height=Math.max(1,Math.round(h*k));c.getContext('2d').drawImage(src,0,0,c.width,c.height);return c}
+const toBlob=(c,q=.85)=>new Promise(r=>c.toBlob(r,'image/jpeg',q));
+function enhanced(src){const c=scaled(src,src.width);const x=c.getContext('2d');const d=x.getImageData(0,0,c.width,c.height),a=d.data,h=new Uint32Array(256);
+  for(let i=0;i<a.length;i+=4){const g=(a[i]*.299+a[i+1]*.587+a[i+2]*.114)|0;a[i]=g;h[g]++}
+  const n=a.length/4;let lo=0,hi=255,acc=0;for(let i=0;i<256;i++){acc+=h[i];if(acc>n*.01){lo=i;break}}acc=0;for(let i=255;i>=0;i--){acc+=h[i];if(acc>n*.01){hi=i;break}}
+  const k=255/Math.max(1,hi-lo);for(let i=0;i<a.length;i+=4){const v=Math.max(0,Math.min(255,(a[i]-lo)*k));a[i]=a[i+1]=a[i+2]=v}
+  x.putImageData(d,0,0);return c}
+async function prepImage(file){
+  const bmp=await loadBitmap(file);const big=scaled(bmp,1600);const th=scaled(bmp,360);
+  const out={big,blob:await toBlob(big,.85),thumb:th.toDataURL('image/jpeg',.6),preview:URL.createObjectURL(file)};
+  if(S.enhance){out.enh=enhanced(big);out.enhBlob=await toBlob(out.enh,.9)}
+  out.hash=await photoHash(file,bmp);
+  return out;
+}
+async function photoHash(file,bmp){
+  let sha='';try{const b=await crypto.subtle.digest('SHA-256',await file.arrayBuffer());sha=[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}catch{}
+  const c=document.createElement('canvas');c.width=9;c.height=8;const x=c.getContext('2d');x.drawImage(bmp,0,0,9,8);const a=x.getImageData(0,0,9,8).data;let bits='';
+  for(let y=0;y<8;y++)for(let i=0;i<8;i++){const p=(y*9+i)*4,q=p+4;bits+=(a[p]*.299+a[p+1]*.587+a[p+2]*.114)>(a[q]*.299+a[q+1]*.587+a[q+2]*.114)?'1':'0'}
+  let dh='';for(let i=0;i<64;i+=4)dh+=parseInt(bits.slice(i,i+4),2).toString(16);
+  return {sha,dh};
+}
+const hamming=(a,b)=>{if(!a||!b||a.length!==b.length)return 99;let n=0;for(let i=0;i<a.length;i++){let v=parseInt(a[i],16)^parseInt(b[i],16);while(v){n+=v&1;v>>=1}}return n};
+const samePhoto=(p,q)=>(p.sha&&p.sha===q.sha)||hamming(p.dh,q.dh)<=4;
+
+/* ================= codes-barres / QR ================= */
+async function readCodes(canvas){
+  const out=[];
+  try{if('BarcodeDetector' in window){const det=new BarcodeDetector();const r=await det.detect(canvas);r.forEach(x=>out.push({format:x.format,value:x.rawValue}))}}catch{}
+  if(!out.length){try{await loadScript(LIB.zxing);const Z=window.ZXing;for(const B of [Z.HybridBinarizer,Z.GlobalHistogramBinarizer]){try{const lum=new Z.HTMLCanvasElementLuminanceSource(canvas);const hints=new Map();hints.set(Z.DecodeHintType.TRY_HARDER,true);const rd=new Z.MultiFormatReader();rd.setHints(hints);const res=rd.decode(new Z.BinaryBitmap(new B(lum)));out.push({format:String(Z.BarcodeFormat[res.getBarcodeFormat()]||'code'),value:res.getText()});break}catch{}}}catch{}}
+  return out;
+}
+/* lecture GS1 : (01) GTIN, (10) lot, (11) date fab., (17) péremption, (21) série */
+function parseGS1(v){
+  const o={};let s=String(v||'').replace(/^\](C1|d2|Q3|e0)/,'');
+  if(/\(\d{2,4}\)/.test(s)){const re=/\((\d{2,4})\)([^(]*)/g;let m;while((m=re.exec(s)))o[m[1]]=m[2].trim()}
+  else if(/^(01\d{14}|10|21|11\d{6})/.test(s)&&(s.includes('\x1d')||/^01\d{14}/.test(s))){
+    const fixed={'00':18,'01':14,'02':14,'11':6,'13':6,'15':6,'17':6};let i=0,guard=0;
+    while(i<s.length&&guard++<12){const ai=s.substr(i,2);if(fixed[ai]){o[ai]=s.substr(i+2,fixed[ai]);i+=2+fixed[ai];if(s[i]==='\x1d')i++}
+      else if(ai==='10'||ai==='21'){let j=s.indexOf('\x1d',i+2);if(j<0)j=s.length;o[ai]=s.slice(i+2,j);i=j+1}else break}
+  }
+  const d=x=>x&&/^\d{6}$/.test(x)?`20${x.slice(0,2)}-${x.slice(2,4)}-${x.slice(4,6)}`:x;
+  const r={};if(o['10'])r.lot=o['10'];if(o['21'])r.serie=o['21'];if(o['11'])r.date_fab=d(o['11']);if(o['01'])r.gtin=o['01'];if(o['17'])r.date_exp=d(o['17']);
+  if(!Object.keys(o).length&&/^\d{8}$|^\d{12,14}$/.test(s.replace(/\s/g,'')))r.gtin=s.replace(/\s/g,''); // EAN-8/13, UPC, GTIN-14 : code article
+  return r;
+}
+const isGtin=v=>/^\d{8}$|^\d{12,14}$/.test(String(v||'').replace(/\s/g,''));
+const NC_RE=/\bNC\b|non.?conforme|quarantaine|rebut|bloqu|d[ée]fectueu|hors.?service|à.?d[ée]truire/i;
+const num=v=>{const n=parseFloat(String(v??'').replace(/[^\d,.\-]/g,'').replace(',','.'));return isNaN(n)?null:n};
+function pieces(s){const fam=famById(s.familyId);if(s.unit==='carton'){const pc=num((s.fields||{}).qte_carton);return pc?(+s.qty||0)*pc:(+s.qty||0)}return +s.qty||0}
+const qtyTxt=s=>s.unit==='carton'?`${s.qty??1} carton(s) = ${pieces(s)} pcs`:String(s.qty??1);
+const hasCarton=fam=>(fam.fields||[]).some(f=>f.key==='qte_carton');
+
+/* ================= lecture IA ================= */
+function parseJSON(t){if(t&&typeof t==='object')return t;const s=String(t||'');const a=s.indexOf('{'),b=s.lastIndexOf('}');if(a<0||b<a)throw new Error('Réponse IA illisible');return JSON.parse(s.slice(a,b+1))}
+async function aiExtract({blobs,family,codes,answers,noLabel}){
+  if(!S.sample)return null;
+  const fams=family?[family]:families();
+  const famTxt=fams.map(f=>({id:f.id,nom:f.name,champs:(f.fields||[]).map(x=>({cle:x.key,libelle:x.label,indices:x.hints||undefined}))}));
+  const prompt=`Tu aides un agent d'inventaire dans un magasin industriel. ${noLabel?"Le produit n'a PAS de plaque signalétique ni d'étiquette : les photos montrent le produit lui-même ou son carton/emballage (marquages imprimés, gravés, peints, inscriptions sur la gaine d'un câble, numéro sur la joue d'un touret, etc.).":"Les photos montrent une plaque signalétique ou une étiquette de produit."}
+Le texte peut être dans n'importe quelle langue (français, anglais, arabe, chinois, etc.) et la plaque peut être gravée, en relief ou sur du métal réfléchissant.
+${family?'Famille imposée':'Familles possibles'} (JSON) : ${JSON.stringify(famTxt)}
+Codes-barres / QR déjà décodés : ${codes.length?JSON.stringify(codes.map(c=>c.value)):'aucun'}
+${answers&&Object.keys(answers).length?'Réponses de l\'agent sur le terrain : '+JSON.stringify(answers):''}
+Consignes :
+1. ${family?'Utilise la famille imposée.':'Choisis la famille la plus adaptée (son id).'}
+2. Remplis chaque champ de cette famille avec la valeur lue. N'invente jamais : mets null si absent ou illisible.
+3. Recopie les numéros (lot, série, référence) exactement, caractère par caractère, sans traduire. Garde les unités (ex. "18 W", "220-240 V~", "1,2 kg").
+4. Dates au format AAAA-MM-JJ si possible, sinon telles qu'écrites.
+5. Donne une confiance de 0 à 1 par champ. Si un caractère est douteux (0/O, 1/I/l, 5/S, 8/B, 2/Z, 6/9), baisse la confiance sous 0,6.
+6. Le texte peut être à l'envers, de travers ou en miroir (photo retournée, marquage peint sur un touret) : lis-le dans le bon sens.
+7. Recopie dans "codes_lus" les chiffres imprimés sous les codes-barres (ex. "6136195000069", "(01)16132355606086"). Un code EAN/GTIN identifie l'article, ce n'est jamais un n° de série.
+8. Si tu vois un autocollant ou un marquage d'état (NC, non conforme, quarantaine, rebut, bloqué, OK…), décris-le dans "etat", même s'il contredit l'étiquette.
+9. Plusieurs photos peuvent montrer des faces différentes du même produit : combine-les en une seule fiche.
+${family?'':'10. Si aucune famille ne convient vraiment, choisis "generique" et propose dans "famille_suggeree" un nom de famille et ses champs utiles.'}
+Réponds UNIQUEMENT avec ce JSON :
+{"famille_id":"…","champs":{"cle":"valeur ou null"},"confiance":{"cle":0.0},"codes_lus":[],"etat":"","texte_lu":"transcription courte du texte visible","remarques":"problèmes de lecture éventuels, en français, ou chaîne vide"${family?'':',"famille_suggeree":null ou {"nom":"…","champs":["…"]}'}}`;
+  const opts={modelTier:'default'};
+  if(blobs.length&&S.aiImages)opts.images=blobs.slice(0,6);
+  try{const r=await S.sample(prompt,opts);return parseJSON(r.text)}
+  catch(e){if(e?.code==='not_granted'){S.sample=null;renderTop()}else if(e?.code==='rate_limited')toast('IA momentanément saturée, saisissez à la main ou relancez dans un instant.','bad');else toast('Lecture IA impossible : '+(e?.message||e),'bad');return null}
+}
+
+/* ================= file de scan + validation ================= */
+function startQueue(files){S.queue=files;S.qi=0;nextInQueue()}
+function nextInQueue(){if(S.qi>=S.queue.length){const n=S.queue.length;S.queue=[];closeModal();if(n>1)toast(`Lot terminé : ${n} photos traitées`);render();return}
+  openValidation({files:[S.queue[S.qi]],idx:S.qi+1,total:S.queue.length})}
+
+async function analyse(ctx){
+  const imgs=[];for(const f of ctx.files||[]){try{imgs.push(await prepImage(f))}catch(e){toast(e.message,'bad')}}
+  const codes=[];for(const im of imgs){(await readCodes(im.big)).forEach(c=>codes.push(c));if(im.enh&&!codes.length)(await readCodes(im.enh)).forEach(c=>codes.push(c))}
+  const gs={};codes.forEach(c=>Object.assign(gs,parseGS1(c.value)));
+  const fixed=ctx.familyId&&ctx.familyId!=='auto'?famById(ctx.familyId):(S.scanFamily!=='auto'?famById(S.scanFamily):null);
+  const blobs=[];imgs.forEach(im=>{blobs.push(im.blob);if(im.enhBlob)blobs.push(im.enhBlob)});
+  const ai=await aiExtract({blobs,family:fixed,codes,answers:ctx.answers,noLabel:ctx.noLabel});
+  let fam=fixed||(ai?.famille_id?famById(ai.famille_id):null)||GENERIC;
+  const fields={},conf={};
+  for(const fd of fam.fields||[]){const v=ai?.champs?.[fd.key];if(v!=null&&String(v).trim()!==''&&String(v).toLowerCase()!=='null'){fields[fd.key]=String(v).trim();conf[fd.key]=+(ai?.confiance?.[fd.key]??.7)}}
+  for(const v of (Array.isArray(ai?.codes_lus)?ai.codes_lus:[])){const val=String(v).trim();if(val&&!codes.some(c=>norm(c.value)===norm(val))){codes.push({format:'lu sur la photo',value:val});Object.assign(gs,{...parseGS1(val),...gs})}}
+  for(const k of ['lot','serie','date_fab','date_exp','gtin'])if(gs[k]&&(fam.fields||[]).some(f=>f.key===k)&&!fields[k]){fields[k]=gs[k];conf[k]=Math.max(conf[k]||0,.9)}
+  for(const k of uniqueKeys(fam))if(isGtin(fields[k])&&gs.gtin&&norm(fields[k])===norm(gs.gtin)){delete fields[k]} // un EAN n'est pas un n° de série
+  if(!ai&&codes.length===1&&!Object.keys(gs).length){const uk=uniqueKeys(fam)[0];if(uk&&!fields[uk]){fields[uk]=codes[0].value;conf[uk]=.5}}
+  const etat=String(ai?.etat||'').trim();
+  return {familyId:fam.id,fields,conf,qty:1,unit:'piece',codes,raw:ai?.texte_lu||'',remark:ai?.remarques||'',imgs,answers:ctx.answers||null,noLabel:!!ctx.noLabel,gtin:gs.gtin||null,usedAI:!!ai,
+    etat,suggest:(fam.id==='generique'&&ai?.famille_suggeree&&ai.famille_suggeree.nom)?ai.famille_suggeree:null};
+}
+
+function dupCheck(d,excludeId){
+  const fam=famById(d.familyId),msgs=[],flags=new Set(),block=[];
+  const others=S.scans.filter(s=>s.sessionId===S.session&&s.id!==excludeId);
+  const mine=(d.imgs||[]).map(im=>im.hash).filter(Boolean).concat(d.photos||[]);
+  if(mine.length){const hit=others.find(s=>(s.photos||[]).some(p=>mine.some(m=>samePhoto(m,p))));
+    if(hit){const z=zoneById(hit.zoneId);flags.add('meme_photo');block.push(hit);msgs.push(`<b>Photo déjà enregistrée</b> le ${esc(fmtDate(hit.at))} par ${esc(who(hit))}, zone ${esc(z?.code||z?.name||'?')} (qté ${esc(qtyTxt(hit))}).`)}}
+  const idKeys=[...new Set([...uniqueKeys(fam),...(fam.fields||[]).filter(f=>f.key==='lot'||f.key==='serie').map(f=>f.key)])];
+  for(const k of idKeys){const v=norm(d.fields[k]);if(!v)continue;
+    const hits=others.filter(s=>norm((s.fields||{})[k])===v);
+    const lbl=(fam.fields.find(f=>f.key===k)||{}).label||k;const byZ={};hits.forEach(x=>(byZ[x.zoneId]||(byZ[x.zoneId]=[])).push(x));
+    for(const [zid,l] of Object.entries(byZ)){const z=zoneById(zid),last=l[l.length-1],n=l.length>1?` (${l.length} fois)`:'';
+      if(zid===(d.zoneId||S.zone)){flags.add('doublon');if(!block.includes(last))block.push(last);msgs.push(`<b>Déjà enregistré :</b> ${esc(lbl)} « ${esc(d.fields[k])} » déjà compté dans cette zone${n}, le ${esc(fmtDate(last.at))} par ${esc(who(last))} (qté ${esc(qtyTxt(last))}).`)}
+      else{flags.add('autre_zone');msgs.push(`<b>Emplacement différent :</b> ${esc(lbl)} « ${esc(d.fields[k])} » déjà compté dans la zone ${esc(z?.code||z?.name||'?')}${n}, le ${esc(fmtDate(last.at))}.`)}}}
+  const missing=(fam.fields||[]).filter(f=>f.required&&!String(d.fields[f.key]||'').trim()).map(f=>f.label);
+  if(missing.length)flags.add('incomplet');
+  if(d.etat&&NC_RE.test(d.etat))flags.add('non_conforme');
+  return {flags:[...flags],msgs,missing,block};
+}
+
+async function openValidation(ctx){
+  S.busy=true;
+  const head=ctx.edit?'Modifier le comptage':(ctx.total>1?`Contrôle de la lecture · photo ${ctx.idx} / ${ctx.total}`:'Contrôle de la lecture');
+  openModal(`<div class="sheet-head"><h2>${esc(head)}</h2><button class="btn ghost" id="vCancel">Fermer</button></div>
+    <div class="row" style="padding:30px 0;justify-content:center"><div class="spinner"></div><div>Lecture de la photo${S.sample?' par l\'IA':''} et des codes-barres…</div></div>`);
+  $('#vCancel').onclick=()=>{S.queue=[];S.busy=false;closeModal()};
+  let d;
+  if(ctx.edit){const s=ctx.edit;d={editId:s.id,familyId:s.familyId,fields:{...(s.fields||{})},conf:{},qty:s.qty??1,unit:s.unit||'piece',etat:s.etat||'',photos:s.photos||[],codes:s.codes||[],raw:s.raw||'',remark:'',imgs:[],thumb:s.thumb,assetIds:s.assetIds||[],answers:s.answers||null,noLabel:!!s.noLabel,note:s.note||'',zoneId:s.zoneId,gtin:s.gtin||null}}
+  else{try{d=await analyse(ctx)}catch(e){toast('Analyse impossible : '+(e.message||e),'bad');d={familyId:S.scanFamily!=='auto'?S.scanFamily:'generique',fields:{},conf:{},qty:1,codes:[],raw:'',remark:'',imgs:[],answers:ctx.answers||null,noLabel:!!ctx.noLabel}}}
+  S.busy=false;
+  if($('#modal').classList.contains('hidden'))return; // fermé pendant l'analyse
+  d.ctx=ctx;renderValidation(d);
+}
+
+function renderValidation(d){
+  const fam=famById(d.familyId),ctx=d.ctx||{};const inQueue=ctx.total>1&&ctx.idx<ctx.total;
+  const pics=d.imgs.length?d.imgs.map(im=>`<img src="${im.preview}" alt="Photo scannée">`).join(''):(d.thumb?`<img src="${esc(d.thumb)}" alt="Photo">`:'')+(d.assetIds||[]).map(id=>`<a class="small" href="#" data-blob="${esc(id)}">Photo en pleine taille</a>`).join(' ');
+  $('#sheet').innerHTML=`<div class="sheet-head"><h2>${esc(ctx.edit?'Modifier le comptage':(ctx.total>1?`Contrôle de la lecture · photo ${ctx.idx} / ${ctx.total}`:'Contrôle de la lecture'))}</h2><button class="btn ghost" id="vCancel">Fermer</button></div>
+  <div class="val">
+    <div class="pics">${pics||'<div class="alert info small">Pas de photo.</div>'}
+      ${d.codes.length?`<div><div class="small muted">Codes lus</div>${d.codes.map(c=>`<div class="codes">${esc(c.format)} : ${esc(c.value)}</div>`).join('')}</div>`:''}
+      ${d.gtin?`<div class="small">GTIN : <span class="mono">${esc(d.gtin)}</span></div>`:''}
+      ${d.raw?`<details><summary>Texte lu sur la photo</summary><div class="small" style="white-space:pre-wrap">${esc(d.raw)}</div></details>`:''}
+      ${d.answers?`<details open><summary>Réponses de l'agent</summary>${Object.entries(d.answers).map(([q,a])=>`<div class="small"><b>${esc(q)}</b> ${esc(a)}</div>`).join('')}</details>`:''}
+    </div>
+    <form id="vForm" class="card" style="border:0;padding:0">
+      ${d.remark?`<div class="alert small">${esc(d.remark)}</div>`:''}
+      ${!d.usedAI&&!ctx.edit?`<div class="alert info small">Champs à vérifier ou à saisir à la main${S.sample?' (la lecture IA n\'a rien renvoyé)':''}.</div>`:''}
+      <label class="f">Famille de produit<select id="vFam">${families().map(f=>`<option value="${esc(f.id)}" ${f.id===fam.id?'selected':''}>${esc(f.name)}</option>`).join('')}</select></label>
+      <div class="fields">${(fam.fields||[]).map(f=>{const v=d.fields[f.key]??'';const c=d.conf[f.key];const low=v&&c!=null&&c<.6;
+        return `<label class="f fld" for="fx_${esc(f.key)}"><span class="row" style="gap:4px">${esc(f.label)}${f.required?' *':''}${f.unique?' <span class="pill n">unique</span>':''}${low?' <span class="pill warn">À vérifier</span>':''}</span>
+        <input type="text" id="fx_${esc(f.key)}" data-k="${esc(f.key)}" value="${esc(v)}" class="${low?'low':''} ${f.required&&!v?'missing':''} ${f.unique||['lot','serie','reference','gtin','marquage'].includes(f.key)?'mono':''}" autocomplete="off"></label>`}).join('')}</div>
+      ${d.suggest?`<div class="alert info small">Aucune famille ne correspond vraiment. Famille proposée : <b>${esc(d.suggest.nom)}</b>${Array.isArray(d.suggest.champs)?' ('+esc(d.suggest.champs.join(', '))+')':''}. ${isAdmin()?'<button type="button" class="btn sm" id="vSug">Créer cette famille</button>':'Demandez à l\'administrateur de la créer.'}</div>`:''}
+      <div class="grid2"><label class="f">Quantité comptée<input type="number" id="vQty" min="0" step="any" value="${esc(d.qty)}"></label>
+        ${hasCarton(fam)?`<label class="f">Unité comptée<select id="vUnit"><option value="piece" ${d.unit!=='carton'?'selected':''}>Pièces</option><option value="carton" ${d.unit==='carton'?'selected':''}>Cartons</option></select></label>`:''}
+        <label class="f">État constaté<input type="text" id="vEtat" value="${esc(d.etat||'')}" placeholder="NC, quarantaine, abîmé…"></label>
+        <label class="f">Remarque<input type="text" id="vNote" value="${esc(d.note||'')}" placeholder="Emballage abîmé…"></label></div>
+      <div class="small muted" id="vPcs"></div>
+      <div id="vWarn"></div>
+      <div class="row hidden" id="vBlock">
+        <button class="btn primary" type="button" id="vB1">Annuler : déjà compté</button>
+        <button class="btn" type="button" id="vB2">Ajouter à la quantité existante</button>
+        <button class="btn ghost danger" type="button" id="vB3">Enregistrer quand même</button>
+      </div>
+      <div class="row" id="vActions">
+        <button class="btn primary" type="submit" id="vSave">Enregistrer</button>
+        ${ctx.edit?'':`<button class="btn" type="button" id="vSkip">Ne pas enregistrer${inQueue?' et passer à la suivante':''}</button>`}
+        ${ctx.edit?'':`<label class="btn ghost">+ Photo d'une autre face<input type="file" accept="image/*" capture="environment" id="vMore" class="hidden"></label>`}
+        ${(!ctx.edit&&S.sample&&(ctx.files||[]).length)?'<button class="btn ghost" type="button" id="vRetry">Relire la photo</button>':''}
+      </div>
+    </form>
+  </div>`;
+  const collect=()=>{$$('[data-k]').forEach(i=>d.fields[i.dataset.k]=i.value.trim());d.qty=$('#vQty').value===''?1:+$('#vQty').value;d.note=$('#vNote').value.trim();d.etat=$('#vEtat').value.trim();d.unit=$('#vUnit')?.value||'piece';
+    $('#vPcs').textContent=d.unit==='carton'?(num(d.fields.qte_carton)?`Soit ${pieces(d)} pièces (${d.qty} carton(s) × ${num(d.fields.qte_carton)}).`:'Renseignez le nombre de pièces par carton pour calculer le total.'):''};
+  const warn=()=>{collect();const r=dupCheck(d,d.editId);let h='';
+    if(r.flags.includes('non_conforme'))h+=`<div class="alert bad">Produit marqué <b>non conforme</b> (${esc(d.etat)}). Il sera compté à part dans l'analyse.</div>`;
+    const blocked=!ctx.edit&&r.block.length>0;
+    if(r.msgs.length)h+=`<div class="alert ${r.block.length?'bad':''}">${r.msgs.join('<br>')}${blocked?'<br><span class="small">Ce produit semble déjà compté. Annulez, ou ajoutez la quantité à la ligne existante.</span>':'<br><span class="small">Vous pouvez quand même enregistrer : le comptage sera signalé dans l\'analyse.</span>'}</div>`;
+    $('#vBlock').classList.toggle('hidden',!blocked);$('#vActions').classList.toggle('hidden',blocked);
+    $('#vB2').classList.toggle('hidden',!(r.block[0]&&r.block[0].familyId===d.familyId));
+    if(r.missing.length)h+=`<div class="alert">Champ(s) obligatoire(s) vide(s) : ${esc(r.missing.join(', '))}. Corrigez si possible avant d'enregistrer.</div>`;
+    $('#vWarn').innerHTML=h;
+    $('#vSave').textContent=(r.flags.includes('doublon')?'Enregistrer quand même (doublon signalé)':r.missing.length?'Enregistrer incomplet':'Enregistrer')+(inQueue?' et photo suivante':'');
+    $$('[data-k]').forEach(i=>{const f=fam.fields.find(x=>x.key===i.dataset.k);i.classList.toggle('missing',!!(f?.required&&!i.value.trim()))});
+    return r};
+  warn();
+  $$('.pics img').forEach(im=>im.onclick=()=>im.classList.toggle('zoom'));
+  $$('[data-k]').forEach(i=>i.addEventListener('input',()=>{i.classList.remove('low');warn()}));
+  ['#vQty','#vEtat'].forEach(s=>$(s).addEventListener('input',warn));$('#vUnit')&&($('#vUnit').onchange=()=>{d.unitTouched=true;warn()});
+  $('#vMore')&&($('#vMore').onchange=e=>{const f=e.target.files[0];e.target.value='';if(!f)return;const files=[...(ctx.files||[]),f].slice(0,4);openValidation({...ctx,files,familyId:d.familyId})});
+  $('#vSug')&&($('#vSug').onclick=()=>{const nm=d.suggest.nom;const fl=(Array.isArray(d.suggest.champs)?d.suggest.champs:[]).map(l=>({key:slug(l),label:String(l)}));S.queue=[];openFamily(null,{name:nm,fields:fl.length?fl:undefined})});
+  $('#vFam').onchange=e=>{collect();d.familyId=e.target.value;renderValidation(d)};
+  $('#vCancel').onclick=()=>{S.queue=[];closeModal()};
+  $('#vSkip')&&($('#vSkip').onclick=()=>{toast('Photo non enregistrée');S.qi++;nextInQueue()});
+  $('#vB1').onclick=()=>{toast('Non enregistré : produit déjà compté');S.qi++;nextInQueue()};
+  $('#vB3').onclick=()=>$('#vForm').requestSubmit();
+  $('#vB2').onclick=async()=>{const r=warn();const hit=r.block[0];if(!hit)return;const b=$('#vB2');b.disabled=true;
+    try{const upd={...hit,qty:(+hit.qty||0)+(+d.qty||1),editedAt:new Date().toISOString()};if(d.unitTouched&&d.unit&&hit.unit!==d.unit&&hasCarton(famById(hit.familyId))){toast('Unités différentes (pièces / cartons) : corrigez avant d\'ajouter','bad');b.disabled=false;return}
+      upd.pieces=pieces(upd);await Store.put('scans',upd);toast(`Quantité mise à jour : ${qtyTxt(upd)}`);S.qi++;nextInQueue()}catch(e){dbErr(e);b.disabled=false}};
+  $('#vRetry')&&($('#vRetry').onclick=()=>{openValidation({...ctx})});
+  $('#vForm').onsubmit=async e=>{e.preventDefault();const r=warn();const btn=$('#vSave');btn.disabled=true;btn.textContent='Enregistrement…';
+    try{await saveScan(d,r);toast(ctx.edit?'Comptage modifié':'Produit enregistré');
+      if(ctx.edit){closeModal()}else{S.qi++;nextInQueue()}}
+    catch(err){dbErr(err);btn.disabled=false;warn()}};
+  const first=$$('[data-k]').find(i=>i.classList.contains('missing')||i.classList.contains('low'));if(first)first.focus();
+}
+
+async function saveScan(d,r){
+  if(!d.editId&&!placeOk(1))throw {code:'limite',message:'limite atteinte'};
+  const fam=famById(d.familyId);const fields={};for(const f of fam.fields||[])if(d.fields[f.key])fields[f.key]=d.fields[f.key];
+  const flags=[...r.flags];if(d.noLabel)flags.push('sans_etiquette');
+  let assetIds=d.assetIds||[];
+  if(S.assets&&d.imgs.length){for(const im of d.imgs){try{const a=await S.assets.upload(im.blob);assetIds.push(a.id)}catch{}}}
+  const base=d.editId?(S.scans.find(s=>s.id===d.editId)||{}):{};
+  const doc={...base,id:d.editId||undefined,sessionId:base.sessionId||S.session,zoneId:base.zoneId||S.zone,familyId:fam.id,fields,qty:d.qty,unit:hasCarton(fam)?(d.unit||'piece'):'piece',etat:d.etat||'',note:d.note||'',
+    codes:(d.codes||[]).slice(0,5),raw:String(d.raw||'').slice(0,1500),answers:d.answers||null,noLabel:!!d.noLabel,flags,gtin:d.gtin||null,
+    thumb:d.imgs[0]?.thumb||d.thumb||null,assetIds,photos:[...(base.photos||[]),...d.imgs.map(im=>im.hash).filter(Boolean)].slice(0,6),
+    at:base.at||new Date().toISOString(),by:base.by||S.uid||null,byName:base.byName||(S.mode==='local'?(S.localName||'Moi'):null)};
+  doc.pieces=pieces(doc);
+  if(d.editId)doc.editedAt=new Date().toISOString();
+  if(!doc.id)delete doc.id;
+  await Store.put('scans',doc);
+}
+
+/* ---------- produit sans plaque ---------- */
+function openNoLabel(){
+  let famId=S.scanFamily!=='auto'?S.scanFamily:(families()[0]?.id||'generique');const files=[];
+  const draw=()=>{const fam=famById(famId);
+    openModal(`<div class="sheet-head"><h2>Produit sans plaque ni étiquette</h2><button class="btn ghost" data-close>Fermer</button></div>
+      <p class="muted small">Répondez aux questions et photographiez le produit ou son carton. L'application en déduit les champs qu'elle peut, vous corrigez ensuite.</p>
+      <label class="f">Famille de produit<select id="nlFam">${families().map(f=>`<option value="${esc(f.id)}" ${f.id===famId?'selected':''}>${esc(f.name)}</option>`).join('')}</select></label>
+      ${(fam.questions||[]).map((q,i)=>`<label class="f">${esc(q)}<input type="text" data-q="${i}"></label>`).join('')||'<p class="small muted">Aucune question définie pour cette famille.</p>'}
+      <label class="btn" style="align-self:flex-start">${ICON.cam} Photographier le produit, le carton ou un marquage<input type="file" accept="image/*" capture="environment" multiple id="nlPh" class="hidden"></label>
+      <div class="small" id="nlCount">${files.length} photo(s)</div>
+      <div><button class="btn primary" id="nlGo">Analyser et remplir</button></div>`);
+    $('#nlFam').onchange=e=>{famId=e.target.value;draw()};
+    $('#nlPh').onchange=e=>{files.push(...e.target.files);e.target.value='';$('#nlCount').textContent=files.length+' photo(s)'};
+    $('#nlGo').onclick=()=>{const answers={};$$('[data-q]').forEach(i=>{if(i.value.trim())answers[fam.questions[+i.dataset.q]]=i.value.trim()});
+      S.queue=[];S.qi=0;openValidation({files:files.slice(0,4),answers,noLabel:true,familyId:famId,total:1,idx:1})};
+  };draw();
+}
+
+/* ---------- zones ---------- */
+function openZone(z){
+  const draft=z?{...z,thumbs:[...(z.thumbs||[])]}:{name:'',code:'',description:'',thumbs:[]};let video=null;const photos=[];
+  openModal(`<div class="sheet-head"><h2>${z?'Modifier la zone':'Nouvelle zone de comptage'}</h2><button class="btn ghost" data-close>Fermer</button></div>
+   <div class="grid2"><label class="f">Nom de la zone<input type="text" id="zN" value="${esc(draft.name)}" placeholder="Magasin A – Allée 3"></label>
+   <label class="f">Code court<input type="text" id="zC" class="mono" value="${esc(draft.code||'')}" placeholder="MA-A3"></label></div>
+   <label class="f">Limites et repères<textarea id="zD" placeholder="Du poteau 12 au mur nord, racks 1 à 4">${esc(draft.description||'')}</textarea></label>
+   <div class="row"><label class="btn">${ICON.cam} Photographier les limites<input type="file" accept="image/*" capture="environment" multiple id="zP" class="hidden"></label>
+   <label class="btn">Filmer les limites<input type="file" accept="video/*" capture="environment" id="zV" class="hidden"></label></div>
+   <div class="row" id="zThumbs">${draft.thumbs.map(t=>`<img class="thumb" src="${esc(t)}" alt="">`).join('')}</div><div class="small muted" id="zVi">${draft.videoId?'Vidéo enregistrée.':''}</div>
+   ${S.assets?'':'<div class="small muted">La vidéo ne peut pas être conservée ici (stockage de fichiers indisponible) : seules les vignettes photo sont gardées.</div>'}
+   <div class="row"><button class="btn primary" id="zSave">Enregistrer la zone</button>${z&&isAdmin()?'<button class="btn danger" id="zDel">Supprimer</button>':''}</div>`);
+  $('#zP').onchange=async e=>{for(const f of e.target.files){try{const b=await loadBitmap(f);draft.thumbs.push(scaled(b,240).toDataURL('image/jpeg',.6));photos.push(f)}catch{}}e.target.value='';draft.thumbs=draft.thumbs.slice(-4);$('#zThumbs').innerHTML=draft.thumbs.map(t=>`<img class="thumb" src="${esc(t)}" alt="">`).join('')};
+  $('#zV').onchange=e=>{video=e.target.files[0]||null;e.target.value='';if(video){$('#zVi').textContent=`Vidéo prête (${(video.size/1048576).toFixed(1)} Mo)${video.size>20*1048576?' : trop lourde, limite 20 Mo':''}`}};
+  $('#zSave').onclick=async()=>{draft.name=$('#zN').value.trim();draft.code=$('#zC').value.trim();draft.description=$('#zD').value.trim();
+    if(!draft.name)return toast('Donnez un nom à la zone','bad');
+    const b=$('#zSave');b.disabled=true;b.textContent='Enregistrement…';
+    try{if(S.assets&&video&&video.size<=20*1048576){try{draft.videoId=(await S.assets.upload(video)).id}catch{toast('Vidéo non envoyée','bad')}}
+      if(!z){draft.at=new Date().toISOString();draft.by=S.uid||null}
+      const id=await Store.put('zones',draft);S.zone=id;LS.set('zone',id);closeModal();go('scan');toast('Zone prête : vous pouvez scanner')}
+    catch(e){dbErr(e);b.disabled=false;b.textContent='Enregistrer la zone'}};
+  $('#zDel')&&($('#zDel').onclick=async()=>{if(await ask('Supprimer cette zone ? Les comptages déjà faits restent.','Supprimer',true)){try{await Store.del('zones',z.id);if(S.zone===z.id){S.zone=null;LS.set('zone',null)}closeModal();render()}catch(e){dbErr(e)}}});
+}
+
+/* ================= Analyse ================= */
+const TARGETS=[['ref','Référence',['ref','réf','code','article','item','sku','part']],['des','Désignation',['désign','design','libell','descr','produit','intitul','name']],['serie','N° lot / série',['série','serie','serial','lot','s/n','sn','batch','numéro']],['emp','Emplacement / zone',['emplac','zone','location','magasin','dépôt','depot','rayon','casier','allée','allee']],['qte','Quantité',['qt','quant','stock','qty','dispo','nombre']]];
+function guessMap(rows){
+  let hi=0,best=-1;for(let r=0;r<Math.min(rows.length,20);r++){const cells=rows[r].map(c=>String(c).toLowerCase());let sc=0;for(const [,,kw] of TARGETS)if(cells.some(c=>kw.some(k=>c.includes(k))))sc++;if(sc>best){best=sc;hi=r}}
+  const head=(rows[hi]||[]).map(c=>String(c).toLowerCase());const m={header:hi};
+  for(const [k,,kw] of TARGETS){m[k]=head.findIndex(c=>kw.some(x=>c.includes(x)))}
+  return m;
+}
+function applyMap(){const rows=S.theoRaw||[],m=S.map;if(!rows.length||!m){S.theo=null;return}
+  const num=v=>{const n=parseFloat(String(v??'').replace(/\s/g,'').replace(',','.'));return isNaN(n)?0:n};
+  S.theo=rows.slice(m.header+1).map(r=>({ref:m.ref>=0?String(r[m.ref]??'').trim():'',des:m.des>=0?String(r[m.des]??'').trim():'',serie:m.serie>=0?String(r[m.serie]??'').trim():'',emp:m.emp>=0?String(r[m.emp]??'').trim():'',qte:m.qte>=0?num(r[m.qte]):1}))
+    .filter(x=>x.ref||x.serie||x.des);
+}
+async function readTheoFile(file){
+  const name=file.name.toLowerCase();
+  if(name.endsWith('.pdf')){await loadScript(LIB.pdfw);await loadScript(LIB.pdf);const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;const rows=[],raw=[];
+    for(let p=1;p<=pdf.numPages;p++){const pg=await pdf.getPage(p);const tc=await pg.getTextContent();const lines={};
+      for(const it of tc.items){if(!it.str||!it.str.trim())continue;const y=Math.round(it.transform[5]/3)*3;(lines[y]||(lines[y]=[])).push({x:it.transform[4],w:it.width,s:it.str})}
+      Object.keys(lines).map(Number).sort((a,b)=>b-a).forEach(y=>{const its=lines[y].sort((a,b)=>a.x-b.x);const cells=[];let cur=null,end=null;
+        for(const it of its){if(cur&&end!=null&&it.x-end<=7){cur.s+=(it.x-end>1?' ':'')+it.s}else{cur={x:it.x,s:it.s};cells.push(cur)}end=it.x+it.w}
+        raw.push(cells.map(c=>({x:c.x,s:c.s.trim()})))})}
+    // alignement des cellules sur les colonnes de l'en-tête (une cellule vide ne décale pas les suivantes)
+    const hi=guessMap(raw.map(r=>r.map(c=>c.s))).header;const hx=(raw[hi]||[]).map(c=>c.x);
+    for(let i=0;i<raw.length;i++){if(i<=hi||!hx.length){rows.push(raw[i].map(c=>c.s));continue}
+      const r=new Array(hx.length).fill('');for(const c of raw[i]){let j=0;for(let k=0;k<hx.length;k++)if(hx[k]<=c.x+8)j=k;r[j]=r[j]?r[j]+' '+c.s:c.s}rows.push(r)}
+    return {rows,text:rows.map(r=>r.join(' | ')).join('\n')};
+  }
+  await loadScript(LIB.xlsx);const wb=XLSX.read(await file.arrayBuffer(),{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});return {rows,text:''};
+}
+async function aiTheo(text){
+  const prompt=`Voici le texte extrait d'un état de stock (PDF), une ligne par ligne de tableau, colonnes séparées par « | ».
+Extrait chaque article en stock. N'invente rien. Réponds UNIQUEMENT en JSON : {"lignes":[{"reference":"","designation":"","lot_serie":"","emplacement":"","quantite":0}]}
+Texte :
+${text.slice(0,60000)}`;
+  const r=await S.sample(prompt,{modelTier:'default'});const j=parseJSON(r.text);
+  return (j.lignes||[]).map(l=>({ref:String(l.reference||''),des:String(l.designation||''),serie:String(l.lot_serie||''),emp:String(l.emplacement||''),qte:+l.quantite||0}));
+}
+function computeAnalysis(sessId){
+  const scans=scansOf(sessId);const zn=id=>{const z=zoneById(id);return z?.code||z?.name||'?'};
+  const theoSer=new Map(),theoRef=new Map();for(const t of (S.theo||[])){const n=norm(t.serie);if(n)theoSer.set(n,t);const r=norm(t.ref);if(r)theoRef.set(r,t)}
+  const matchTheo=s=>{for(const v of Object.values(s.fields||{})){const n=norm(v);if(n.length>=3&&theoSer.has(n))return theoSer.get(n)}for(const v of [s.fields?.reference,s.fields?.gtin,s.gtin]){const n=norm(v);if(n&&theoRef.has(n))return theoRef.get(n)}return null};
+  const keyRef=s=>{const t=matchTheo(s);if(t)return norm(t.ref||t.des);return norm(s.fields?.reference||s.fields?.gtin||s.gtin||s.fields?.designation||'')};
+  const seenU=new Set();const counted={};for(const s of scans){const u=uniqueKeys(famById(s.familyId)).map(k=>norm(s.fields?.[k])).find(Boolean);if(u){if(seenU.has(u))continue;seenU.add(u)} // un même n° de série n'est compté qu'une fois
+    const k=keyRef(s)||'(SANS RÉFÉRENCE)';const c=counted[k]||(counted[k]={ref:s.fields?.reference||s.fields?.gtin||s.gtin||'',des:s.fields?.designation||'',qty:0,zones:new Set(),n:0});c.qty+=pieces(s);c.n++;c.zones.add(zn(s.zoneId));if(!c.des&&s.fields?.designation)c.des=s.fields.designation}
+  const ids={};for(const s of scans){const fam=famById(s.familyId);for(const k of uniqueKeys(fam)){const v=norm(s.fields?.[k]);if(!v)continue;(ids[v]||(ids[v]={val:s.fields[k],list:[]})).list.push(s)}}
+  const doublons=[],multi=[];
+  for(const v of Object.values(ids)){if(v.list.length<2)continue;const byZone={};v.list.forEach(s=>(byZone[s.zoneId]||(byZone[s.zoneId]=[])).push(s));
+    for(const [z,l] of Object.entries(byZone))if(l.length>1)doublons.push({val:v.val,zone:zn(z),n:l.length,ref:l[0].fields?.reference||l[0].fields?.designation||famById(l[0].familyId).name,who:[...new Set(l.map(who))].join(', ')});
+    if(Object.keys(byZone).length>1)multi.push({val:v.val,zones:Object.keys(byZone).map(zn).join(' · '),n:v.list.length,ref:v.list[0].fields?.reference||v.list[0].fields?.designation||famById(v.list[0].familyId).name})}
+  const nc=scans.filter(s=>(s.flags||[]).includes('non_conforme')).map(s=>({ref:s.fields?.reference||s.fields?.designation||'',id:uniqueKeys(famById(s.familyId)).map(k=>s.fields?.[k]).find(Boolean)||s.fields?.lot||'',etat:s.etat||'',zone:zn(s.zoneId),qty:pieces(s)}));
+  const res={scans:scans.length,counted,doublons,multi,nc,ecarts:[],notFound:[],unexpected:[],wrongPlace:[]};
+  if(S.theo&&S.theo.length){
+    const th={};for(const t of S.theo){const k=norm(t.ref||t.des);if(!k)continue;const c=th[k]||(th[k]={ref:t.ref,des:t.des,qty:0});c.qty+=t.qte}
+    const keys=new Set([...Object.keys(th),...Object.keys(counted)]);
+    for(const k of keys){const t=th[k],c=counted[k];const tq=t?.qty||0,cq=c?.qty||0;
+      res.ecarts.push({ref:t?.ref||c?.ref||(k==='(SANS RÉFÉRENCE)'?k:'—'),des:t?.des||c?.des||'',theo:tq,compte:cq,ecart:cq-tq,statut:!t?'Non référencé au stock':!c?'Non trouvé':cq===tq?'Conforme':cq<tq?'Manquant':'Excédent'})}
+    res.ecarts.sort((a,b)=>Math.abs(b.ecart)-Math.abs(a.ecart));
+    const scanVals=new Map();for(const s of scans)for(const [,v] of Object.entries(s.fields||{})){const n=norm(v);if(n.length>=3)(scanVals.get(n)||scanVals.set(n,[]).get(n)).push(s)}
+    const inZone=(s,emp)=>{const z=zoneById(s.zoneId),e=norm(emp);return [norm(z?.code),norm(z?.name)].some(x=>x&&(x===e||x.includes(e)||e.includes(x)))};
+    for(const [n,t] of theoSer){const l=scanVals.get(n);if(!l)res.notFound.push(t);else if(t.emp&&!l.some(s=>inZone(s,t.emp)))res.wrongPlace.push({serie:t.serie,ref:t.ref,attendu:t.emp,trouve:[...new Set(l.map(s=>zn(s.zoneId)))].join(' · ')})}
+    if(theoSer.size){for(const [v,o] of Object.entries(ids)){if(!theoSer.has(v))res.unexpected.push({val:o.val,ref:o.list[0].fields?.reference||'',zone:zn(o.list[0].zoneId)})}}
+  }
+  return res;
+}
+VIEWS.analyse=()=>{
+  if(!canManage())return `<div class="card"><h2>Analyse réservée</h2><p class="muted">Cette fenêtre est réservée aux magasiniers, gestionnaires du stock et administrateurs.</p></div>`;
+  const sid=S.anaSession||S.session;const sessOpts=S.sessions.slice().sort((a,b)=>String(b.at).localeCompare(String(a.at))).map(s=>`<option value="${esc(s.id)}" ${s.id===sid?'selected':''}>${esc(s.name)}</option>`).join('');
+  if(!sid)return `<div class="card"><p>Aucune session à analyser.</p></div>`;
+  const A=computeAnalysis(sid);const m=S.map;const cols=S.theoRaw?Math.max(...S.theoRaw.slice(0,30).map(r=>r.length)):0;
+  const head=S.theoRaw&&m?S.theoRaw[m.header]||[]:[];
+  const colOpt=sel=>`<option value="-1">— aucune —</option>`+Array.from({length:cols},(_,i)=>`<option value="${i}" ${sel===i?'selected':''}>Col. ${i+1}${head[i]?' : '+esc(String(head[i]).slice(0,24)):''}</option>`).join('');
+  const T=(cls,v,l)=>`<div class="tile ${cls}"><div class="v">${v}</div><div class="l">${l}</div></div>`;
+  const nE=A.ecarts.filter(e=>e.statut!=='Conforme').length;
+  const table=(heads,rows)=>`<div class="tbl-wrap"><table><thead><tr>${heads.map(h=>`<th class="${h[1]||''}">${h[0]}</th>`).join('')}</tr></thead><tbody>${rows||`<tr><td colspan="${heads.length}" class="muted">Rien à signaler.</td></tr>`}</tbody></table></div>`;
+  return `<div class="card"><div class="grid2"><label class="f">Session analysée<select id="aSess">${sessOpts}</select></label>
+     <label class="f">Stock théorique (PDF, Excel ou CSV)<input type="file" id="aFile" accept=".pdf,.xlsx,.xls,.csv"></label></div>
+     ${S.theoRaw?`<div class="small muted">${S.theoName?esc(S.theoName)+' · ':''}${S.theo?S.theo.length:0} ligne(s) de stock retenue(s)</div>
+       ${S.theoRaw.length&&!S.theoAI?`<details ${S.theo&&S.theo.length?'':'open'}><summary>Colonnes du fichier</summary><div class="grid2" style="margin-top:8px">
+       <label class="f">Ligne d'en-tête<input type="number" id="mH" min="1" value="${m.header+1}"></label>
+       ${TARGETS.map(([k,l])=>`<label class="f">${l}<select data-m="${k}">${colOpt(m[k])}</select></label>`).join('')}</div></details>`:''}
+       ${S.sample&&S.theoText?`<div><button class="btn sm" id="aAI">${S.theoAI?'Relire le PDF avec l\'IA':'Le PDF est mal découpé ? Le lire avec l\'IA'}</button></div>`:''}`
+     :'<div class="small muted">Sans stock théorique, l\'analyse montre déjà les doublons et les n° de série vus dans plusieurs zones.</div>'}
+     <div class="row"><button class="btn sm" id="aXls">Exporter l'analyse en Excel</button></div></div>
+   <div class="tiles">${T('',A.scans,'Scans de la session')}${T(A.doublons.length?'bad':'ok',A.doublons.length,'Doublons')}${T(A.multi.length?'warn':'ok',A.multi.length,'Même n° série, zones différentes')}${T(A.nc.length?'bad':'ok',A.nc.length,'Produits non conformes')}
+     ${S.theo?T(nE?'warn':'ok',nE,'Références en écart')+T(A.notFound.length?'bad':'ok',A.notFound.length,'N° attendus non trouvés')+T(A.unexpected.length?'warn':'ok',A.unexpected.length,'N° trouvés non attendus')+T(A.wrongPlace.length?'warn':'ok',A.wrongPlace.length,'Emplacement différent du stock'):''}</div>
+   <h3>Doublons (même n° unique compté plusieurs fois dans la même zone)</h3>
+   ${table([['N° série'],['Référence'],['Zone'],['Nb','num'],['Compté par']],A.doublons.map(d=>`<tr><td class="mono">${esc(d.val)}</td><td class="mono">${esc(d.ref)}</td><td>${esc(d.zone)}</td><td class="num">${d.n}</td><td>${esc(d.who)}</td></tr>`).join(''))}
+   <h3>Même n° de série dans des emplacements différents</h3>
+   ${table([['N° série'],['Référence'],['Zones'],['Nb','num']],A.multi.map(d=>`<tr><td class="mono">${esc(d.val)}</td><td class="mono">${esc(d.ref)}</td><td>${esc(d.zones)}</td><td class="num">${d.n}</td></tr>`).join(''))}
+   <h3>Produits marqués non conformes</h3>
+   ${table([['Référence'],['N° lot / série'],['État'],['Zone'],['Pièces','num']],A.nc.map(n=>`<tr><td class="mono">${esc(n.ref)}</td><td class="mono">${esc(n.id)}</td><td>${esc(n.etat)}</td><td>${esc(n.zone)}</td><td class="num">${n.qty}</td></tr>`).join(''))}
+   ${S.theo?`<h3>Comparaison stock théorique / compté par référence</h3>
+   ${table([['Référence'],['Désignation'],['Théorique','num'],['Compté','num'],['Écart','num'],['Statut']],A.ecarts.map(e=>`<tr><td class="mono">${esc(e.ref)}</td><td>${esc(e.des)}</td><td class="num">${e.theo}</td><td class="num">${e.compte}</td><td class="num">${e.ecart>0?'+':''}${e.ecart}</td><td><span class="pill ${e.statut==='Conforme'?'ok':e.statut==='Excédent'||e.statut==='Non référencé au stock'?'warn':'bad'}">${esc(e.statut)}</span></td></tr>`).join(''))}
+   <h3>N° de lot / série attendus mais non trouvés</h3>
+   ${table([['N° lot / série'],['Référence'],['Emplacement prévu'],['Qté','num']],A.notFound.slice(0,500).map(t=>`<tr><td class="mono">${esc(t.serie)}</td><td class="mono">${esc(t.ref)}</td><td>${esc(t.emp)}</td><td class="num">${t.qte}</td></tr>`).join(''))}
+   <h3>N° trouvés à un autre emplacement que celui du stock</h3>
+   ${table([['N° lot / série'],['Référence'],['Prévu'],['Trouvé']],A.wrongPlace.map(w=>`<tr><td class="mono">${esc(w.serie)}</td><td class="mono">${esc(w.ref)}</td><td>${esc(w.attendu)}</td><td>${esc(w.trouve)}</td></tr>`).join(''))}
+   <h3>N° de série scannés absents du stock théorique</h3>
+   ${table([['N° série'],['Référence'],['Zone']],A.unexpected.map(u=>`<tr><td class="mono">${esc(u.val)}</td><td class="mono">${esc(u.ref)}</td><td>${esc(u.zone)}</td></tr>`).join(''))}`:''}`;
+};
+BIND.analyse=()=>{
+  if(!$('#aSess'))return;
+  $('#aSess').onchange=e=>{S.anaSession=e.target.value;render()};
+  $('#aFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;toast('Lecture du fichier…');
+    try{const {rows,text}=await readTheoFile(f);S.theoRaw=rows;S.theoText=text;S.theoName=f.name;S.theoAI=false;S.map=guessMap(rows);applyMap();render();
+      if(!S.theo?.length)toast('Colonnes non reconnues : indiquez-les dans « Colonnes du fichier ».','bad')}catch(err){toast('Fichier illisible : '+err.message,'bad')}};
+  $('#mH')&&($('#mH').onchange=e=>{S.map.header=Math.max(0,(+e.target.value||1)-1);applyMap();render()});
+  $$('[data-m]').forEach(s=>s.onchange=()=>{S.map[s.dataset.m]=+s.value;applyMap();render()});
+  $('#aAI')&&($('#aAI').onclick=async()=>{const b=$('#aAI');b.disabled=true;b.textContent='Lecture par l\'IA…';try{S.theo=await aiTheo(S.theoText);S.theoAI=true;render();toast(S.theo.length+' lignes lues')}catch(e){toast('Lecture IA impossible : '+(e.message||e),'bad');b.disabled=false}});
+  $('#aXls').onclick=exportAnalysis;
+};
+
+/* ================= exports ================= */
+async function saveFile(filename,blob){
+  if(S.downloads){try{await S.downloads.save({filename,data:blob});return}catch(e){try{await S.downloads.save({filename,data:new Uint8Array(await blob.arrayBuffer())});return}catch(e2){if(e2?.code==='rejected'||e2?.code==='cancelled')return;toast('Téléchargement refusé : '+(e2?.message||e2),'bad');return}}}
+  toast('Le téléchargement n\'est pas disponible dans cet affichage. Ouvrez l\'application dans son propre onglet.','bad');
+}
+async function xlsxBlob(sheets){await loadScript(LIB.xlsx);const wb=XLSX.utils.book_new();for(const [name,rows] of sheets){const ws=XLSX.utils.json_to_sheet(rows.length?rows:[{Info:'Aucune donnée'}]);XLSX.utils.book_append_sheet(wb,ws,name.slice(0,31))}
+  return new Blob([XLSX.write(wb,{type:'array',bookType:'xlsx'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})}
+function scanRow(s){const fam=famById(s.familyId),z=zoneById(s.zoneId);const r={Famille:fam.name,Zone:z?.code||z?.name||'',Quantité:s.qty??1,Unité:s.unit==='carton'?'carton':'pièce',Pièces:pieces(s),'Code article (GTIN)':s.gtin||''};for(const f of fam.fields||[])r[f.label]=s.fields?.[f.key]||'';
+  Object.assign(r,{Alertes:(s.flags||[]).join(', '),État:s.etat||'',Remarque:s.note||'',Agent:who(s),Date:fmtDate(s.at),Codes:(s.codes||[]).map(c=>c.value).join(' ; ')});return r}
+async function exportScans(){const sess=sessById(S.session);const list=scansOf(S.session);const sheets=[['Tous',list.map(scanRow)],['Par agent',byAgent(list).map(a=>({Agent:a.nom,Scans:a.scans,Pièces:a.pieces,Zones:[...a.zones].join(', '),Alertes:a.alertes,'Premier scan':fmtDate(a.premier),'Dernier scan':fmtDate(a.dernier)}))]];
+  for(const f of families()){const l=list.filter(s=>s.familyId===f.id);if(l.length)sheets.push([f.name,l.map(scanRow)])}
+  try{await saveFile(`Comptage_${slug(sess?.name||'session')}.xlsx`,await xlsxBlob(sheets))}catch(e){toast(e.message,'bad')}}
+async function exportAnalysis(){const sid=S.anaSession||S.session;const A=computeAnalysis(sid);
+  const sheets=[['Doublons',A.doublons.map(d=>({'N° série':d.val,Référence:d.ref,Zone:d.zone,Nombre:d.n,'Compté par':d.who}))],['Zones différentes',A.multi.map(d=>({'N° série':d.val,Référence:d.ref,Zones:d.zones,Nombre:d.n}))],['Non conformes',A.nc.map(n=>({Référence:n.ref,'N° lot/série':n.id,État:n.etat,Zone:n.zone,Pièces:n.qty}))]];
+  if(S.theo){sheets.push(['Écarts',A.ecarts.map(e=>({Référence:e.ref,Désignation:e.des,Théorique:e.theo,Compté:e.compte,Écart:e.ecart,Statut:e.statut}))],['Non trouvés',A.notFound.map(t=>({'N° lot/série':t.serie,Référence:t.ref,'Emplacement prévu':t.emp,Quantité:t.qte}))],['Mauvais emplacement',A.wrongPlace.map(w=>({'N° lot/série':w.serie,Référence:w.ref,Prévu:w.attendu,Trouvé:w.trouve}))],['Non attendus',A.unexpected.map(u=>({'N° série':u.val,Référence:u.ref,Zone:u.zone}))])}
+  sheets.push(['Comptage',scansOf(sid).map(scanRow)]);
+  try{await saveFile(`Analyse_${slug(sessById(sid)?.name||'session')}.xlsx`,await xlsxBlob(sheets))}catch(e){toast(e.message,'bad')}}
+
+/* ================= Réglages ================= */
+VIEWS.reglages=()=>`
+  <div class="card"><h2>Où sont stockées les données ?</h2>
+   ${S.mode==='supabase'?`<p>Chaque comptage est enregistré directement dans la base Supabase <span class="mono">inventaire-scan</span>, dès que l'agent appuie sur « Enregistrer ». Les photos y sont gardées en pleine taille. Tous les agents connectés voient les comptages en direct.</p>`:S.mode==='cloud'?`<p>Les comptages, zones et familles sont enregistrés en ligne et partagés en direct entre tous les agents qui ont accès à cette application. Les photos en pleine taille sont gardées ${S.assets?'dans l\'espace fichiers de l\'application':'en vignette seulement'}.</p>
+     <p class="small muted">Sans réseau dans le dépôt : prenez les photos avec l'appareil photo du téléphone, puis importez-les ici une fois connecté (« Importer des photos déjà prises »).</p>`
+   :`<p>Mode local : les données restent dans le navigateur de cet appareil. Elles ne sont pas partagées et peuvent être effacées avec l'historique du navigateur. Exportez régulièrement une sauvegarde.</p>`}
+   <div><div class="small"><b>${totalDocs()}</b> comptages sur <b>${LIMITE}</b> autorisés</div><div style="height:8px;background:var(--bg);border:1px solid var(--line);border-radius:6px;overflow:hidden"><div style="height:100%;width:${Math.min(100,totalDocs()/LIMITE*100).toFixed(1)}%;background:${totalDocs()>LIMITE*0.9?'var(--bad)':totalDocs()>LIMITE*0.7?'var(--warn)':'var(--ok)'}"></div></div></div>
+   <div class="row"><button class="btn sm" id="bkOut">Exporter une sauvegarde (JSON)</button><label class="btn sm">Importer une sauvegarde<input type="file" accept=".json" id="bkIn" class="hidden"></label></div></div>
+  ${S.mode==='local'?`<div class="card"><h3>Profil sur cet appareil</h3><div class="grid2"><label class="f">Votre nom<input type="text" id="lName" value="${esc(S.localName)}"></label>
+     <label class="f">Rôle (essai)<select id="lRole">${Object.entries(ROLES).map(([k,v])=>`<option value="${k}" ${S.localRole===k?'selected':''}>${v}</option>`).join('')}</select></label></div></div>`:''}
+  ${isAdmin()&&S.mode==='supabase'?accesCard():''}
+  ${false?`<div class="card"><h2>Test automatique</h2><p class="small muted">Fait passer 8 photos d'exemple de produits génériques (vis, moteur, peinture, ciment, gants, disjoncteur, huile) par la vraie lecture de l'application, compare avec les bonnes valeurs, puis vérifie les blocages (même photo, même n° de série). Le test crée sa propre session.</p><div><button class="btn primary" id="autoTest">Lancer le test automatique</button></div></div>`:''}
+  <div class="card"><div class="row between"><h2>Familles de produits</h2>${isAdmin()?'<button class="btn sm primary" id="famNew">+ Nouvelle famille</button>':''}</div>
+   <p class="small muted">Chaque famille a ses propres champs. Un champ « unique » (n° de série) sert à repérer les doublons. Les questions servent quand la plaque ou l'étiquette a été enlevée.</p>
+   ${families().map(f=>`<div class="row between" style="border-top:1px solid var(--line);padding-top:8px"><div><b>${esc(f.name)}</b><div class="small muted">${(f.fields||[]).map(x=>esc(x.label)+(x.unique?' (unique)':'')).join(' · ')}</div></div>${isAdmin()?`<button class="btn sm" data-fam="${esc(f.id)}">Modifier</button>`:''}</div>`).join('')}</div>
+  ${false?`<div class="card"><h2>Rôles des agents</h2><p class="small muted">Les agents apparaissent ici après leur première ouverture de l'application. Les éditeurs de l'application sont administrateurs.</p>
+   ${S.users.filter(u=>u.id!==S.uid).map(u=>{const r=S.roles.find(x=>x.id===u.id)?.role||'compteur';return `<div class="row between"><span>${esc(S.names[u.id]||'Agent')}</span><select data-role="${esc(u.id)}" style="max-width:240px">${['compteur','magasinier','gestionnaire'].map(k=>`<option value="${k}" ${r===k?'selected':''}>${ROLES[k]}</option>`).join('')}</select></div>`}).join('')||'<p class="small muted">Aucun autre agent pour le moment.</p>'}
+   <p class="small muted">Compteur : scanne. Magasinier et gestionnaire : scannent, corrigent, clôturent, analysent et exportent.</p></div>`:''}`;
+BIND.reglages=()=>{
+  $('#bkOut').onclick=async()=>{const data={version:1,at:new Date().toISOString()};for(const k of ['families','zones','sessions','scans'])data[k]=S[k];await saveFile(`Sauvegarde_inventaire_${new Date().toISOString().slice(0,10)}.json`,new Blob([JSON.stringify(data)],{type:'application/json'}))};
+  $('#bkIn').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;try{const j=JSON.parse(await f.text());let n=0;
+    for(const k of ['families','zones','sessions','scans'])for(const o of j[k]||[]){if(k==='families'&&!isAdmin())continue;await Store.put(k,o);n++}toast(n+' élément(s) importé(s)')}catch(err){err?.code?dbErr(err):toast('Sauvegarde illisible','bad')}};
+  $('#lName')&&($('#lName').onchange=e=>{S.localName=e.target.value.trim();LS.set('localName',S.localName)});
+  $('#lRole')&&($('#lRole').onchange=e=>{S.localRole=e.target.value;LS.set('localRole',S.localRole);render()});
+  $('#famNew')&&($('#famNew').onclick=()=>openFamily());
+  $('#autoTest')&&($('#autoTest').onclick=runAutoTest);
+  bindAcces();
+  $('#supaAll')&&($('#supaAll').onclick=()=>supaSync(S.sessions.map(s=>s.id)));
+  $$('[data-sup]').forEach(b=>b.onclick=()=>supaSync([b.dataset.sup]));
+  $$('[data-free]').forEach(b=>b.onclick=()=>freeSession(b.dataset.free));
+  $$('[data-fam]').forEach(b=>b.onclick=()=>openFamily(famById(b.dataset.fam)));
+  $$('[data-role]').forEach(s=>s.onchange=async()=>{try{await Store.put('roles',{id:s.dataset.role,role:s.value,by:S.uid,at:new Date().toISOString()});toast('Rôle mis à jour')}catch(e){dbErr(e)}});
+};
+function openFamily(f,preset){
+  const d=f?JSON.parse(JSON.stringify(f)):{name:'',fields:[{key:'reference',label:'Référence'},{key:'designation',label:'Désignation'},{key:'lot',label:'N° de lot'},{key:'serie',label:'N° de série',unique:true}],questions:[],order:50};
+  if(preset){if(preset.name)d.name=preset.name;if(preset.fields)d.fields=preset.fields}
+  const draw=()=>{openModal(`<div class="sheet-head"><h2>${f?'Modifier la famille':'Nouvelle famille'}</h2><button class="btn ghost" data-close>Fermer</button></div>
+    <div class="grid2"><label class="f">Nom de la famille<input type="text" id="fmN" value="${esc(d.name)}" placeholder="Câbles (tourets)"></label><label class="f">Ordre d'affichage<input type="number" id="fmO" value="${esc(d.order??50)}"></label></div>
+    <h3>Champs à lire sur la plaque ou l'étiquette</h3>
+    ${d.fields.map((x,i)=>`<div class="famrow"><input type="text" data-fl="${i}" value="${esc(x.label)}" placeholder="Libellé"><input type="text" data-fh="${i}" value="${esc((x.hints||[]).join(', '))}" placeholder="Indices : S/N, Serial, رقم…">
+      <label class="check small"><input type="checkbox" data-fu="${i}" ${x.unique?'checked':''}>unique</label><label class="check small"><input type="checkbox" data-fr="${i}" ${x.required?'checked':''}>obligatoire</label><button class="btn sm ghost" data-fx="${i}" aria-label="Retirer le champ">✕</button></div>`).join('')}
+    <div><button class="btn sm" id="fmAdd">+ Ajouter un champ</button></div>
+    <label class="f">Questions si la plaque ou l'étiquette est absente (une par ligne)<textarea id="fmQ">${esc((d.questions||[]).join('\n'))}</textarea></label>
+    <div class="row"><button class="btn primary" id="fmSave">Enregistrer</button>${f&&S.families.some(x=>x.id===f.id)?'<button class="btn danger" id="fmDel">Supprimer</button>':''}</div>`);
+    const sync=()=>{d.name=$('#fmN').value.trim();d.order=+$('#fmO').value||50;d.questions=$('#fmQ').value.split('\n').map(s=>s.trim()).filter(Boolean);
+      d.fields.forEach((x,i)=>{x.label=$(`[data-fl="${i}"]`).value.trim();x.hints=$(`[data-fh="${i}"]`).value.split(',').map(s=>s.trim()).filter(Boolean);x.unique=$(`[data-fu="${i}"]`).checked;x.required=$(`[data-fr="${i}"]`).checked;if(!x.key)x.key=slug(x.label)})};
+    $('#fmAdd').onclick=()=>{sync();d.fields.push({key:'',label:''});draw()};
+    $$('[data-fx]').forEach(b=>b.onclick=()=>{sync();d.fields.splice(+b.dataset.fx,1);draw()});
+    $('#fmSave').onclick=async()=>{sync();d.fields=d.fields.filter(x=>x.label);const seen=new Set();d.fields.forEach(x=>{if(!x.key)x.key=slug(x.label);let k=x.key,n=2;while(seen.has(k))k=x.key+'_'+n++;x.key=k;seen.add(k)});
+      if(!d.name)return toast('Donnez un nom à la famille','bad');if(!d.fields.length)return toast('Ajoutez au moins un champ','bad');
+      try{await Store.put('families',{...d,id:d.id||slug(d.name)+'_'+uid().slice(-4)});closeModal();render();toast('Famille enregistrée')}catch(e){dbErr(e)}};
+    $('#fmDel')&&($('#fmDel').onclick=async()=>{if(await ask('Supprimer cette famille ? Les comptages existants restent mais s\'afficheront comme « Générique ».','Supprimer',true)){try{await Store.del('families',f.id);closeModal();render()}catch(e){dbErr(e)}}});
+  };draw();
+}
+
+/* ================= base Supabase (phase 1) ================= */
+const sessLastChange=sid=>S.scans.filter(s=>s.sessionId===sid).reduce((m,s)=>{const t=String(s.editedAt||s.at||'');return t>m?t:m},'');
+function supaState(s){const n=scansOf(s.id).length;if(s.archived)return {txt:'Archivée dans Supabase (libérée ici)',cls:'ok'};if(!s.supaAt)return {txt:'Jamais envoyée',cls:'n'};
+  return sessLastChange(s.id)>s.supaAt?{txt:'Modifiée depuis le dernier envoi',cls:'warn'}:{txt:'À jour dans Supabase ('+fmtDate(s.supaAt)+')',cls:'ok'}}
+function supaCard(){
+  const list=S.sessions.slice().sort((a,b)=>String(b.at).localeCompare(String(a.at)));
+  return `<div class="card"><div class="row between"><h2>Base Supabase</h2><button class="btn sm primary" id="supaAll">Tout envoyer vers Supabase</button></div>
+   <p class="small muted">Projet <span class="mono">inventaire-scan</span>. L'envoi passe par votre connecteur Supabase dans Claude (réservé à l'administrateur). Une session clôturée et à jour dans Supabase peut être libérée ici pour rester sous ${LIMITE} enregistrements.</p>
+   <div class="tbl-wrap"><table><thead><tr><th>Session</th><th class="num">Scans</th><th>Supabase</th><th></th></tr></thead><tbody>
+   ${list.map(s=>{const st=supaState(s);const ok=st.cls==='ok'&&!s.archived;return `<tr><td>${esc(s.name)} ${s.status==='cloturee'?'<span class="pill n">Clôturée</span>':''}</td><td class="num">${s.archived?(s.supaCount??'—'):scansOf(s.id).length}</td><td><span class="pill ${st.cls}">${esc(st.txt)}</span></td>
+     <td><div class="row" style="flex-wrap:nowrap">${s.archived?'':`<button class="btn sm" data-sup="${esc(s.id)}">Envoyer</button>`}${ok&&s.status==='cloturee'?`<button class="btn sm danger" data-free="${esc(s.id)}">Libérer</button>`:''}</div></td></tr>`}).join('')||'<tr><td colspan="4" class="muted">Aucune session.</td></tr>'}
+   </tbody></table></div><div id="supaMsg" class="small">${esc(S.supaMsg||'')}</div></div>`;
+}
+const sqlJson=v=>{const t='$invj$';return t+JSON.stringify(v).split(t).join('')+t+'::jsonb'};
+const sqlTxt=v=>`(${sqlJson(v==null?'':String(v))}#>>'{}')`;
+const readN=r=>{const p=r?.payload??r;const t=typeof p==='string'?p:JSON.stringify(p);return +((t.match(/\\?"n\\?"\s*:\s*(\d+)/)||[])[1])};
+async function supaSql(query,ms=45000){const mcp=S.mcp||(S.mcp=await claude.use('mcp'));if(!mcp)throw {code:'no_mcp'};
+  const opt=(typeof AbortSignal!=='undefined'&&AbortSignal.timeout)?{signal:AbortSignal.timeout(ms)}:undefined;
+  return await mcp.callTool(SUPA.server,'execute_sql',{project_id:SUPA.project,query},opt)}
+const lost=e=>['cancelled','upstream_error','server_unavailable'].includes(e?.code)||/request failed/i.test(e?.message||'');
+// écriture idempotente : si la réponse se perd, on vérifie dans Supabase que les lignes sont bien arrivées
+async function supaWrite(query,verifyIds){try{return await supaSql(query)}catch(e){if(!lost(e)||!verifyIds)throw e;
+  await new Promise(r=>setTimeout(r,1500));const n=readN(await supaSql(`select count(*)::int as n from inv_comptages where id = any(array(select jsonb_array_elements_text(${sqlJson(verifyIds)}))) and synchro_le > now() - interval '15 minutes';`));
+  if(n!==verifyIds.length)throw e}}
+function supaErr(e){const m={no_mcp:'Le connecteur Supabase n\'est pas disponible dans cet affichage. Ouvrez l\'application dans claude.ai.',server_not_connected:'Connecteur Supabase absent : ajoutez-le dans claude.ai, Paramètres → Connecteurs.',needs_reauth:'Reconnectez Supabase dans claude.ai, Paramètres → Connecteurs.',not_in_manifest:'L\'accès à Supabase a été refusé pour cette page.',approval_required:'Autorisez l\'application à utiliser Supabase quand Claude le demande.',tool_error:'Supabase a refusé la requête : '+(e?.message||'')};
+  return m[e?.code]||('Envoi impossible : '+(e?.message||e?.code||e))}
+async function supaSync(ids){
+  const msg=t=>{S.supaMsg=t;const e=$('#supaMsg');if(e)e.textContent=t};
+  const btns=$$('#supaAll,[data-sup],[data-free]');btns.forEach(b=>b.disabled=true);
+  try{
+    msg('Envoi des familles et des zones…');
+    const fam=S.families.map(f=>({id:f.id,nom:f.name,ordre:f.order??null,champs:f.fields||[],questions:f.questions||[]}));
+    const zon=S.zones.map(z=>({id:z.id,nom:z.name,code:z.code||null,description:z.description||null,video_id:z.videoId||null,cree_le:z.at||null,cree_par:z.by||null}));
+    await supaSql(`insert into inv_familles (id,nom,ordre,champs,questions) select id,nom,ordre,champs,questions from jsonb_to_recordset(${sqlJson(fam)}) as x(id text,nom text,ordre int,champs jsonb,questions jsonb)
+      on conflict (id) do update set nom=excluded.nom,ordre=excluded.ordre,champs=excluded.champs,questions=excluded.questions,synchro_le=now();
+      insert into inv_zones (id,nom,code,description,video_id,cree_le,cree_par) select id,nom,code,description,video_id,cree_le,cree_par from jsonb_to_recordset(${sqlJson(zon)}) as x(id text,nom text,code text,description text,video_id text,cree_le timestamptz,cree_par text)
+      on conflict (id) do update set nom=excluded.nom,code=excluded.code,description=excluded.description,video_id=excluded.video_id,synchro_le=now();`);
+    let done=0;
+    for(const sid of ids){const s=sessById(sid);if(!s||s.archived)continue;
+      msg(`Envoi de la session « ${s.name} »…`);
+      await supaSql(`insert into inv_sessions (id,nom,type,statut,cree_le,cree_par) values (${sqlTxt(s.id)},${sqlTxt(s.name)},${sqlTxt(s.type)},${sqlTxt(s.status)},${s.at?sqlTxt(s.at)+'::timestamptz':'null'},${sqlTxt(s.by)})
+        on conflict (id) do update set nom=excluded.nom,type=excluded.type,statut=excluded.statut,synchro_le=now();`);
+      const rows=scansOf(sid).map(c=>{const f=c.fields||{},fm=famById(c.familyId);return {id:c.id,session_id:sid,zone_id:c.zoneId||null,famille_id:c.familyId||null,reference:f.reference||null,designation:f.designation||f.marquage||null,lot:f.lot||null,
+        serie:uniqueKeys(fm).filter(k=>k!=='lot').map(k=>f[k]).find(Boolean)||f.serie||null,gtin:f.gtin||c.gtin||null,quantite:+c.qty||0,unite:c.unit||'piece',pieces:pieces(c),etat:c.etat||null,remarque:c.note||null,alertes:c.flags||[],champs:f,sans_etiquette:!!c.noLabel,reponses:c.answers||null,codes:c.codes||[],texte_lu:c.raw?String(c.raw).slice(0,400):null,photo_ids:c.assetIds||[],
+        agent_id:c.by||null,agent_nom:who(c),scanne_le:c.at||null,modifie_le:c.editedAt||null}});
+      const CH=40;
+      for(let i=0;i<rows.length;i+=CH){const part=rows.slice(i,i+CH);msg(`Session « ${s.name} » : ${Math.min(i+CH,rows.length)} / ${rows.length} comptages…`);
+        await supaWrite(`insert into inv_comptages (id,session_id,zone_id,famille_id,reference,designation,lot,serie,gtin,quantite,unite,pieces,etat,remarque,alertes,champs,sans_etiquette,reponses,codes,texte_lu,photo_ids,agent_id,agent_nom,scanne_le,modifie_le)
+          select id,session_id,zone_id,famille_id,reference,designation,lot,serie,gtin,quantite,unite,pieces,etat,remarque,alertes,champs,coalesce(sans_etiquette,false),reponses,codes,texte_lu,coalesce(photo_ids,'{}'),agent_id,agent_nom,scanne_le,modifie_le
+          from jsonb_to_recordset(${sqlJson(part)}) as x(id text,session_id text,zone_id text,famille_id text,reference text,designation text,lot text,serie text,gtin text,quantite numeric,unite text,pieces numeric,etat text,remarque text,alertes text[],champs jsonb,sans_etiquette boolean,reponses jsonb,codes jsonb,texte_lu text,photo_ids text[],agent_id text,agent_nom text,scanne_le timestamptz,modifie_le timestamptz)
+          on conflict (id) do update set zone_id=excluded.zone_id,famille_id=excluded.famille_id,reference=excluded.reference,designation=excluded.designation,lot=excluded.lot,serie=excluded.serie,gtin=excluded.gtin,quantite=excluded.quantite,unite=excluded.unite,pieces=excluded.pieces,etat=excluded.etat,remarque=excluded.remarque,alertes=excluded.alertes,champs=excluded.champs,sans_etiquette=excluded.sans_etiquette,reponses=excluded.reponses,codes=excluded.codes,texte_lu=excluded.texte_lu,photo_ids=excluded.photo_ids,agent_nom=excluded.agent_nom,modifie_le=excluded.modifie_le,synchro_le=now();`,part.map(r=>r.id))}
+      // comptages supprimés dans l'application : supprimés aussi dans Supabase
+      const delQ=`delete from inv_comptages where session_id=${sqlTxt(sid)} and not (id = any(array(select jsonb_array_elements_text(${sqlJson(rows.map(r=>r.id))}))));`;
+      const cntQ=`select count(*)::int as n from inv_comptages where session_id=${sqlTxt(sid)};`;
+      let chk;try{chk=await supaSql(delQ+'\n'+cntQ)}catch(e){if(!lost(e))throw e;await new Promise(r=>setTimeout(r,1500));chk=await supaSql(cntQ)}
+      const n=readN(chk);
+      if(n!==rows.length)throw {code:'tool_error',message:`contrôle : ${n} lignes dans Supabase pour ${rows.length} dans l'application`};
+      await Store.put('sessions',{...s,supaAt:new Date().toISOString(),supaCount:n});done++;
+    }
+    msg(`Envoi terminé : ${done} session(s) à jour dans Supabase.`);toast('Données envoyées vers Supabase');
+  }catch(e){msg(supaErr(e));toast(supaErr(e),'bad')}
+  finally{btns.forEach(b=>b.disabled=false);render()}
+}
+async function freeSession(sid){
+  const s=sessById(sid);if(!s)return;const list=scansOf(sid);
+  if(!(await ask(`Libérer « ${s.name} » ? Ses ${list.length} comptages seront supprimés de l'application ; ils restent dans Supabase (vérifié : ${s.supaCount??'?'} lignes).`,'Libérer',true)))return;
+  try{const chk=await supaSql(`select count(*)::int as n from inv_comptages where session_id=${sqlTxt(sid)};`);const n=readN(chk);
+    if(n!==list.length){toast(`Supabase contient ${n} lignes pour ${list.length} ici : renvoyez la session avant de la libérer.`,'bad');return}
+    for(let i=0;i<list.length;i++){await Store.del('scans',list[i].id);if(i%20===0){const e=$('#supaMsg');if(e)e.textContent=`Libération : ${i+1} / ${list.length}…`}}
+    await Store.put('sessions',{...s,archived:true,supaCount:n});if(S.session===sid){S.session=null;LS.set('session',null)}toast('Session libérée : les données restent dans Supabase');render()}
+  catch(e){toast(supaErr(e),'bad')}
+}
+
+/* ================= test automatique ================= */
+async function runAutoTest(){
+  const t0=Date.now();const iso=()=>new Date().toISOString();
+  openModal(`<div class="sheet-head"><h2>Test automatique</h2><button class="btn ghost" id="atClose">Fermer</button></div><div id="atHead" class="row"><div class="spinner"></div><span id="atStep">Préparation…</span></div><div id="atOut"></div>`);
+  let stop=false;$('#atClose').onclick=()=>{stop=true;closeModal()};
+  const step=t=>{const e=$('#atStep');if(e)e.textContent=t};
+  let man;try{man=await (await fetch('demo/gen/manifest.json')).json()}catch(e){step('Photos d\'exemple introuvables.');return}
+  const prevFam=S.scanFamily;S.scanFamily='auto';
+  const results=[];
+  try{
+    const sid=await Store.put('sessions',{name:'TEST AUTO – produits génériques '+new Date().toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'}),type:'inventaire',status:'ouverte',at:iso(),by:S.uid||null});
+    const zid=await Store.put('zones',{name:'TEST AUTO – zone A',code:'TA-A',description:'Zone créée par le test automatique',thumbs:[],at:iso(),by:S.uid||null});
+    S.session=sid;S.zone=zid;LS.set('session',sid);LS.set('zone',zid);
+    const waitScan=async id=>{for(let i=0;i<50&&!S.scans.some(s=>s.id===id);i++)await new Promise(r=>setTimeout(r,100))};
+    for(let i=0;i<man.length&&!stop;i++){const it=man[i];step(`Photo ${i+1} / ${man.length} : ${it.titre}…`);
+      const blob=await (await fetch('demo/gen/'+it.file)).blob();const file=new File([blob],it.file,{type:blob.type||'image/jpeg'});
+      const d=await analyse({files:[file],familyId:'auto'});const r=dupCheck(d);
+      const res={titre:it.titre,file:it.file,usedAI:d.usedAI,famille:famById(d.familyId).name,codes:(d.codes||[]).map(c=>c.value)};
+      if(it.expectBlock){res.type='blocage';res.ok=r.block.length>0;res.detail=r.msgs.map(m=>m.replace(/<[^>]+>/g,'')).join(' ');}
+      else{res.type='lecture';const exp=it.expect||{};res.famOk=!exp.familyId||exp.familyId===d.familyId;res.champs=[];
+        const fam=famById(d.familyId);
+        for(const [k,v] of Object.entries(exp.fields||{})){const lu=d.fields[k]||(k==='gtin'?d.gtin:'')||'';const a=norm(v),b=norm(lu);
+          res.champs.push({k,label:(fam.fields.find(f=>f.key===k)||{}).label||k,attendu:v,lu,ok:!!b&&(a===b||b.includes(a)||(a.length>3&&a.includes(b)&&b.length>=a.length-1))})}
+        res.ok=res.famOk&&res.champs.every(c=>c.ok);
+        if(r.block.length){res.detail='Bloqué à tort : '+r.msgs.map(m=>m.replace(/<[^>]+>/g,'')).join(' ')}
+        else{d.note='Test automatique';const before=new Set(S.scans.map(s=>s.id));await saveScan(d,r);for(let k=0;k<50&&S.scans.every(s=>before.has(s.id));k++)await new Promise(r=>setTimeout(r,100))}}
+      results.push(res);drawAuto(results,man.length,false);}
+  }catch(e){results.push({titre:'Erreur',type:'erreur',ok:false,detail:String(e?.message||e)})}
+  S.scanFamily=prevFam;
+  const champs=results.flatMap(r=>r.champs||[]);const report={at:iso(),dureeSec:Math.round((Date.now()-t0)/1000),champsOk:champs.filter(c=>c.ok).length,champsTotal:champs.length,
+    famillesOk:results.filter(r=>r.type==='lecture'&&r.famOk).length,lectures:results.filter(r=>r.type==='lecture').length,blocagesOk:results.filter(r=>r.type==='blocage'&&r.ok).length,blocages:results.filter(r=>r.type==='blocage').length,ia:results.some(r=>r.usedAI),results,session:S.session};
+  if(S.db){try{await S.db.collection('inv_tests').doc('t'+Date.now()).set(report)}catch{}}
+  drawAuto(results,man.length,true,report);
+}
+function drawAuto(results,total,done,rep){
+  const out=$('#atOut');if(!out)return;
+  if(done){const h=$('#atHead');if(h)h.innerHTML=`<span class="pill ${rep.champsOk===rep.champsTotal?'ok':'warn'}">${rep.champsOk} / ${rep.champsTotal} champs lus correctement</span><span class="pill ${rep.famillesOk===rep.lectures?'ok':'warn'}">${rep.famillesOk} / ${rep.lectures} familles reconnues</span><span class="pill ${rep.blocagesOk===rep.blocages?'ok':'bad'}">${rep.blocagesOk} / ${rep.blocages} blocages corrects</span><span class="pill n">${rep.dureeSec} s</span>${rep.ia?'':'<span class="pill bad">IA indisponible : lecture codes-barres seulement</span>'}<button class="btn sm" id="atSee">Voir les comptages</button>`;$('#atSee')&&($('#atSee').onclick=()=>{closeModal();go('liste')})}
+  out.innerHTML=results.map((r,i)=>`<div class="card" style="margin-top:8px"><div class="row between"><b>${i+1}. ${esc(r.titre)}</b><span class="pill ${r.ok?'ok':'bad'}">${r.ok?'OK':'À revoir'}</span></div>
+    ${r.type==='lecture'?`<div class="small">Famille : ${esc(r.famille)} ${r.famOk?'✓':'✗'}${r.codes&&r.codes.length?' · Codes : <span class="mono">'+esc(r.codes.join(' ; '))+'</span>':''}</div>
+      <div class="tbl-wrap"><table><thead><tr><th>Champ</th><th>Attendu</th><th>Lu par l'application</th><th></th></tr></thead><tbody>${r.champs.map(c=>`<tr><td>${esc(c.label)}</td><td class="mono">${esc(c.attendu)}</td><td class="mono">${esc(c.lu||'—')}</td><td>${c.ok?'✓':'✗'}</td></tr>`).join('')}</tbody></table></div>`:''}
+    ${r.detail?`<div class="small ${r.ok?'':'muted'}">${esc(r.detail)}</div>`:''}</div>`).join('');
+}
+
+
+/* ================= Supabase : connexion, base, photos, IA ================= */
+const SB_URL='https://ostihfyfahlcfqdjqcsz.supabase.co';
+const SB_KEY='sb_publishable_18PPbF3nzIqjWxKvkjoh4w_uodI5nQ-';
+let sb=null;
+const TBL={sessions:'inv_sessions',zones:'inv_zones',families:'inv_familles',scans:'inv_comptages'};
+const MAP={
+  sessions:{from:r=>({id:r.id,name:r.nom,type:r.type,status:r.statut,at:r.cree_le,by:r.cree_par}),
+            to:o=>({id:o.id,nom:o.name,type:o.type||null,statut:o.status||'ouverte',cree_le:o.at||new Date().toISOString(),cree_par:o.by||S.uid})},
+  zones:{from:r=>({id:r.id,name:r.nom,code:r.code,description:r.description,thumbs:r.thumbs||[],videoId:r.video_id,at:r.cree_le,by:r.cree_par}),
+         to:o=>({id:o.id,nom:o.name,code:o.code||null,description:o.description||null,thumbs:o.thumbs||[],video_id:o.videoId||null,cree_le:o.at||new Date().toISOString(),cree_par:o.by||S.uid})},
+  families:{from:r=>({id:r.id,name:r.nom,order:r.ordre,fields:r.champs||[],questions:r.questions||[]}),
+            to:o=>({id:o.id,nom:o.name,ordre:o.order??null,champs:o.fields||[],questions:o.questions||[]})},
+  scans:{from:r=>({id:r.id,sessionId:r.session_id,zoneId:r.zone_id,familyId:r.famille_id,fields:r.champs||{},qty:+r.quantite||0,unit:r.unite||'piece',pieces:+r.pieces||0,etat:r.etat||'',note:r.remarque||'',
+           flags:r.alertes||[],noLabel:!!r.sans_etiquette,answers:r.reponses,codes:r.codes||[],raw:r.texte_lu||'',assetIds:r.photo_ids||[],photos:r.photos||[],thumb:r.thumb,by:r.agent_id,byName:r.agent_nom,at:r.scanne_le,editedAt:r.modifie_le,gtin:r.gtin_lu||null}),
+         to:c=>{const f=c.fields||{},fm=famById(c.familyId);return {id:c.id,session_id:c.sessionId,zone_id:c.zoneId||null,famille_id:c.familyId||null,reference:f.reference||null,designation:f.designation||f.marquage||null,lot:f.lot||null,
+           serie:uniqueKeys(fm).filter(k=>k!=='lot').map(k=>f[k]).find(Boolean)||f.serie||null,gtin:f.gtin||c.gtin||null,gtin_lu:c.gtin||null,quantite:+c.qty||0,unite:c.unit||'piece',pieces:pieces(c),etat:c.etat||null,remarque:c.note||null,
+           alertes:c.flags||[],champs:f,sans_etiquette:!!c.noLabel,reponses:c.answers||null,codes:c.codes||[],texte_lu:c.raw?String(c.raw).slice(0,1500):null,photo_ids:c.assetIds||[],photos:c.photos||[],thumb:c.thumb||null,
+           agent_id:c.by||S.uid,agent_nom:c.byName||S.names[c.by||S.uid]||S.profil?.nom||null,scanne_le:c.at||new Date().toISOString(),modifie_le:c.editedAt||null}}}
+};
+function sbErr(e){const m=String(e?.message||e||'');if(/LIMITE_9000/.test(m))return {code:'quota_exceeded',message:m};if(e?.code==='42501'||/row-level security|permission/i.test(m))return {code:'invalid_argument',message:m};return {code:e?.code||'unavailable',message:m}}
+const SBStore={
+  async loadAll(t){let out=[],from=0;for(;;){const {data,error}=await sb.from(t).select('*').range(from,from+999);if(error)throw error;out=out.concat(data);if(data.length<1000)break;from+=1000}return out},
+  async load(){for(const [k,t] of Object.entries(TBL))S[k]=(await this.loadAll(t)).map(MAP[k].from);await loadProfils();resolveNamesSB()},
+  subscribe(){const ch=sb.channel('inventaire');
+    for(const [k,t] of Object.entries(TBL))ch.on('postgres_changes',{event:'*',schema:'public',table:t},p=>{
+      if(p.eventType==='DELETE'){S[k]=S[k].filter(x=>x.id!==p.old.id)}else{const o=MAP[k].from(p.new);const i=S[k].findIndex(x=>x.id===o.id);if(i>=0)S[k][i]=o;else S[k].push(o)}
+      if(k==='sessions')pickDefaultSession();scheduleRender()});
+    ch.on('postgres_changes',{event:'*',schema:'public',table:'profils'},()=>loadProfils().then(scheduleRender));
+    ch.subscribe(st=>{if(st==='CHANNEL_ERROR'||st==='TIMED_OUT'){S.loadNote='Mise à jour en direct interrompue : rechargez la page si les comptages des autres agents n\'apparaissent pas.';scheduleRender()}else if(st==='SUBSCRIBED'&&S.loadNote){S.loadNote='';scheduleRender()}})},
+  async put(k,obj){if(!TBL[k])return obj.id;const id=obj.id||uid();const row=MAP[k].to({...obj,id});const exists=S[k].some(x=>x.id===id);
+    const {error}=exists?await sb.from(TBL[k]).update(row).eq('id',id):await sb.from(TBL[k]).insert(row);if(error)throw sbErr(error);
+    const o=MAP[k].from(row);const i=S[k].findIndex(x=>x.id===id);if(i>=0)S[k][i]=o;else S[k].push(o);scheduleRender();return id},
+  async del(k,id){const {error}=await sb.from(TBL[k]).delete().eq('id',id);if(error)throw sbErr(error);S[k]=S[k].filter(x=>x.id!==id);scheduleRender()}
+};
+async function loadProfils(){const {data}=await sb.from('profils').select('user_id,email,nom,role,actif');S.profils=data||[];for(const p of S.profils)S.names[p.user_id]=p.nom;
+  S.profil=S.profils.find(p=>p.user_id===S.uid)||S.profil;S.users=S.profils.map(p=>({id:p.user_id}));S.roles=S.profils.map(p=>({id:p.user_id,role:p.role}))}
+function resolveNamesSB(){for(const s of S.scans)if(s.by&&!S.names[s.by]&&s.byName)S.names[s.by]=s.byName}
+// photos : espace de stockage privé « photos »
+const SBAssets={async upload(blob){const ext=(blob.type||'').includes('png')?'png':(blob.type||'').includes('webp')?'webp':(blob.type||'').startsWith('video')?((blob.type.split('/')[1]||'mp4').replace('quicktime','mov')):'jpg';
+  const path=`${S.uid}/${new Date().toISOString().slice(0,7)}/${uid()}.${ext}`;const {error}=await sb.storage.from('photos').upload(path,blob,{contentType:blob.type||'image/jpeg',upsert:false});if(error)throw error;return {id:path,url:null}}};
+document.addEventListener('click',async e=>{const a=e.target.closest('[data-blob]');if(!a||!sb)return;e.preventDefault();const w=window.open('','_blank');
+  const {data,error}=await sb.storage.from('photos').createSignedUrl(a.dataset.blob,3600);if(error||!data){if(w)w.close();toast('Photo introuvable','bad');return}if(w)w.location=data.signedUrl;else location.href=data.signedUrl});
+// lecture IA : fonction serveur « lire-photo » (Gemini, niveau gratuit)
+const b64=blob=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=rej;r.readAsDataURL(blob)});
+const SBSample=Object.assign(async function(prompt,opts={}){
+  const images=[];for(const bl of (opts.images||[]))images.push({mime:bl.type||'image/jpeg',data:await b64(bl)});
+  const {data,error}=await sb.functions.invoke('lire-photo',{body:{prompt,images}});
+  if(error){let j={};try{j=await error.context.json()}catch{}
+    if(j.error==='QUOTA')throw {code:'rate_limited',message:j.message};
+    if(j.error==='NO_KEY'){toast('Lecture IA pas encore activée : la clé Gemini manque dans Supabase.','bad');throw {code:'not_granted',message:j.message}}
+    throw {code:'ia',message:j.message||error.message}}
+  return {text:data?.text||'',truncated:false}},{limits:async()=>({images:true})});
+// téléchargements : fichier normal
+const SBDownloads={async save({filename,data}){const blob=data instanceof Blob?data:new Blob([data]);const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),5000)}};
+
+/* ---------- écran de connexion ---------- */
+function authShow(html){$('#auth').classList.remove('hidden');$('#authBody').innerHTML=html}
+async function authStart(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(session){await enter(session);return}
+  let existe=true;try{const {data}=await sb.functions.invoke('gerer-acces',{body:{action:'etat'}});existe=!!data?.admin_existe}catch{}
+  if(!existe)return authFirstAdmin();authLogin();
+}
+function authLogin(msg,typed){
+  authShow(`<h2>Connexion</h2>${msg?`<div class="alert bad small">${esc(msg)}</div>`:''}
+   <form id="lgF" class="card" style="border:0;padding:0"><label class="f">Email<input type="text" id="lgE" autocomplete="username" inputmode="email"></label>
+   <label class="f">Mot de passe<input type="password" id="lgP" autocomplete="current-password" style="width:100%;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:9px 10px;color:var(--ink)"></label>
+   <button class="btn primary" type="submit" id="lgB">Se connecter</button></form>
+   <p class="small muted">Pas de compte ou mot de passe oublié : demandez à l'administrateur de l'inventaire.</p>`);
+  $('#lgE').value=typed||LS.get('lastEmail','');($('#lgE').value?$('#lgP'):$('#lgE')).focus();
+  $('#lgF').onsubmit=async e=>{e.preventDefault();const b=$('#lgB');b.disabled=true;b.textContent='Connexion…';const email=$('#lgE').value.trim().toLowerCase();
+    const {data,error}=await sb.auth.signInWithPassword({email,password:$('#lgP').value});
+    if(error){b.disabled=false;b.textContent='Se connecter';return authLogin(/invalid/i.test(error.message)?'Email ou mot de passe incorrect.':error.message,email)}
+    LS.set('lastEmail',email);await enter(data.session)};
+}
+function authFirstAdmin(){
+  authShow(`<h2>Premier démarrage</h2><p class="small muted">Aucun administrateur n'existe encore. Créez le compte administrateur de l'inventaire. Vous créerez ensuite les comptes des agents dans Réglages → Accès.</p>
+   <form id="faF" class="card" style="border:0;padding:0"><label class="f">Votre nom<input type="text" id="faN"></label><label class="f">Email<input type="text" id="faE" inputmode="email"></label>
+   <label class="f">Mot de passe (8 caractères minimum)<input type="password" id="faP" autocomplete="new-password" style="width:100%;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:9px 10px;color:var(--ink)"></label>
+   <button class="btn primary" type="submit" id="faB">Créer le compte administrateur</button></form><div id="faM"></div>`);
+  $('#faF').onsubmit=async e=>{e.preventDefault();const b=$('#faB');b.disabled=true;const email=$('#faE').value.trim().toLowerCase(),password=$('#faP').value;
+    const {data,error}=await sb.functions.invoke('gerer-acces',{body:{action:'premier_admin',email,password,nom:$('#faN').value.trim()}});
+    let err=data?.error;if(error){try{err=(await error.context.json()).error}catch{err=error.message}}
+    if(err){b.disabled=false;$('#faM').innerHTML=`<div class="alert bad small">${esc(err)}</div>`;return}
+    const r=await sb.auth.signInWithPassword({email,password});if(r.error)return authLogin(r.error.message);LS.set('lastEmail',email);await enter(r.data.session)};
+}
+async function enter(session){
+  S.uid=session.user.id;S.email=session.user.email;
+  const {data:p}=await sb.from('profils').select('*').eq('user_id',S.uid).maybeSingle();
+  if(!p||!p.actif){await sb.auth.signOut();return authLogin(p?'Votre compte est désactivé. Contactez l\'administrateur.':'Ce compte n\'a pas d\'accès à l\'inventaire. Contactez l\'administrateur.')}
+  S.profil=p;authShow('<div class="row"><div class="spinner"></div><span>Chargement des données…</span></div>');
+  try{await SBStore.load()}catch(e){return authLogin('Chargement impossible : '+(e.message||e))}
+  S.session=LS.get('session',null);pickDefaultSession();if(S.zone&&!zoneById(S.zone))S.zone=null;
+  SBStore.subscribe();$('#auth').classList.add('hidden');render();
+}
+const sb_onAuth=()=>sb.auth.onAuthStateChange((ev)=>{if(ev==='SIGNED_OUT'){S.profil=null;for(const k in TBL)S[k]=[];authLogin()}});
+
+/* ---------- mon compte ---------- */
+function openMonCompte(){
+  openModal(`<div class="sheet-head"><h2>Mon compte</h2><button class="btn ghost" data-close>Fermer</button></div>
+   <div class="card"><div><b>${esc(S.profil?.nom||'')}</b> · ${esc(S.email||'')}</div><div class="small muted">Rôle : ${esc(ROLES[role()])}</div></div>
+   <div class="card"><h3>Changer mon mot de passe</h3><label class="f">Nouveau mot de passe (8 caractères minimum)<input type="password" id="mcP" autocomplete="new-password" style="width:100%;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:9px 10px;color:var(--ink)"></label>
+   <div><button class="btn" id="mcB">Enregistrer le mot de passe</button></div></div>
+   <div><button class="btn danger" id="mcOut">Se déconnecter</button></div>`);
+  $('#mcB').onclick=async()=>{const pw=$('#mcP').value;if(pw.length<8)return toast('8 caractères minimum','bad');const {error}=await sb.auth.updateUser({password:pw});error?toast(error.message,'bad'):(toast('Mot de passe changé'),closeModal())};
+  $('#mcOut').onclick=async()=>{closeModal();await sb.auth.signOut()};
+}
+
+/* ---------- fenêtre Accès (administrateur) ---------- */
+function accesCard(){return `<div class="card"><div class="row between"><h2>Accès</h2><button class="btn sm primary" id="acOpen">Gérer les accès</button></div>
+  <p class="small muted">Chaque personne se connecte avec son email et son mot de passe. Vous créez les comptes, choisissez le rôle, désactivez ou changez un mot de passe.</p>
+  <div class="small">${(S.profils||[]).filter(p=>p.actif).length} compte(s) actif(s) · ${(S.profils||[]).filter(p=>!p.actif).length} désactivé(s)</div></div>`}
+function bindAcces(){$('#acOpen')&&($('#acOpen').onclick=openAcces)}
+async function acces(body){const {data,error}=await sb.functions.invoke('gerer-acces',{body});if(error){let j={};try{j=await error.context.json()}catch{}throw new Error(j.error||error.message)}if(data?.error)throw new Error(data.error);return data}
+const genPw=()=>{const c='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';let s='';const a=new Uint32Array(10);crypto.getRandomValues(a);for(const v of a)s+=c[v%c.length];return s};
+async function openAcces(){
+  openModal(`<div class="sheet-head"><h2>Accès à l'inventaire</h2><button class="btn ghost" data-close>Fermer</button></div><div id="acBody"><div class="row"><div class="spinner"></div><span>Chargement…</span></div></div>`);
+  let comptes=[];try{comptes=(await acces({action:'lister'})).comptes||[]}catch(e){$('#acBody').innerHTML=`<div class="alert bad">${esc(e.message)}</div>`;return}
+  const roleSel=(id,r)=>`<select data-acr="${esc(id)}">${Object.entries(ROLES).map(([k,v])=>`<option value="${k}" ${r===k?'selected':''}>${v}</option>`).join('')}</select>`;
+  $('#acBody').innerHTML=`<div id="acMsg"></div><div class="card"><h3>Nouveau compte</h3><div class="grid2">
+     <label class="f">Nom et prénom<input type="text" id="acN"></label><label class="f">Email<input type="text" id="acE" inputmode="email"></label>
+     <label class="f">Mot de passe (à donner à l'agent)<input type="text" id="acP" class="mono" value="${genPw()}"></label><label class="f">Rôle${roleSel('new','compteur').replace('data-acr="new"','id="acR"')}</label></div>
+     <div><button class="btn primary" id="acAdd">Créer le compte</button></div></div>
+   <div class="tbl-wrap"><table><thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>État</th><th>Dernière connexion</th><th></th></tr></thead><tbody>
+   ${comptes.map(c=>`<tr><td>${esc(c.nom)}${c.user_id===S.uid?' <span class="pill n">vous</span>':''}</td><td class="small">${esc(c.email)}</td><td>${roleSel(c.user_id,c.role)}</td>
+     <td>${c.actif?'<span class="pill ok">Actif</span>':'<span class="pill bad">Désactivé</span>'}</td><td class="small">${c.derniere_connexion?esc(fmtDate(c.derniere_connexion)):'jamais'}</td>
+     <td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-acpw="${esc(c.user_id)}">Nouveau mot de passe</button>
+     ${c.user_id===S.uid?'':`<button class="btn sm" data-acact="${esc(c.user_id)}" data-v="${c.actif?'0':'1'}">${c.actif?'Désactiver':'Réactiver'}</button><button class="btn sm danger" data-acdel="${esc(c.user_id)}" aria-label="Supprimer">✕</button>`}</div></td></tr>`).join('')}
+   </tbody></table></div>
+   <p class="small muted">Compteur : scanne. Magasinier et gestionnaire : scannent, corrigent, clôturent, analysent et exportent. Administrateur : tout, plus les familles et les accès.</p>`;
+  const done=(t,isErr)=>{$('#acMsg').innerHTML=`<div class="alert ${isErr?'bad':'ok'} small">${esc(t)}</div>`};
+  $('#acAdd').onclick=async()=>{const b=$('#acAdd');b.disabled=true;const email=$('#acE').value.trim(),password=$('#acP').value.trim(),nom=$('#acN').value.trim();
+    try{await acces({action:'creer',email,password,nom,role:$('#acR').value});await loadProfils();await openAcces();done(`Compte créé pour ${nom||email}. Transmettez-lui : email ${email} · mot de passe ${password}`)}catch(e){b.disabled=false;done(e.message,true)}};
+  $$('[data-acr]').forEach(s=>s.onchange=async()=>{try{await acces({action:'modifier',user_id:s.dataset.acr,role:s.value});await loadProfils();done('Rôle mis à jour')}catch(e){done(e.message,true);openAcces()}});
+  $$('[data-acact]').forEach(b=>b.onclick=async()=>{try{await acces({action:'modifier',user_id:b.dataset.acact,actif:b.dataset.v==='1'});await loadProfils();await openAcces();done(b.dataset.v==='1'?'Compte réactivé':'Compte désactivé : la personne ne peut plus rien voir ni enregistrer')}catch(e){done(e.message,true)}});
+  $$('[data-acpw]').forEach(b=>b.onclick=async()=>{const pw=genPw();if(!(await ask(`Donner le nouveau mot de passe « ${pw} » à ce compte ?`,'Changer')))return;try{await acces({action:'modifier',user_id:b.dataset.acpw,password:pw});done(`Nouveau mot de passe : ${pw} (à transmettre à la personne)`)}catch(e){done(e.message,true)}});
+  $$('[data-acdel]').forEach(b=>b.onclick=async()=>{if(!(await ask('Supprimer définitivement ce compte ? Ses comptages restent dans la base.','Supprimer',true)))return;try{await acces({action:'supprimer',user_id:b.dataset.acdel});await loadProfils();await openAcces();done('Compte supprimé')}catch(e){done(e.message,true)}});
+}
+
+/* ================= démarrage ================= */
+async function init(){
+  S.view=VIEWS[location.hash.slice(1)]?location.hash.slice(1):'scan';
+  if(!window.supabase){authShow('<div class="alert bad">Impossible de charger l\'application : vérifiez la connexion Internet puis rechargez la page.</div>');return}
+  sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
+  S.mode='supabase';S.db=null;S.sample=SBSample;S.aiImages=true;S.assets=SBAssets;S.downloads=SBDownloads;S.names={};
+  for(const k in TBL)S[k]=[];
+  sb_onAuth();
+  await authStart();
+}
+init();
+</script>
+</body>
+</html>
