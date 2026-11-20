@@ -1,0 +1,84 @@
+name: Construire l'APK
+# L'APK ouvre https://inventaire-br.github.io : les mises à jour du site arrivent sans réinstaller.
+# À relancer seulement si ce fichier change (Actions → Construire l'APK → Run workflow).
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/build-apk.yml'
+permissions:
+  contents: write
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Preparer le projet
+        run: |
+          mkdir -p apk/www && cd apk
+          cp ../index.html ../manifest.webmanifest ../icon-192.png ../icon-512.png ../apk-bridge.js www/
+          cat > package.json <<'EOF_PKG'
+          {
+            "name": "inventaire-scan",
+            "version": "1.0.0",
+            "private": true,
+            "dependencies": {
+              "@capacitor/android": "^8.6.0",
+              "@capacitor/browser": "^8.0.0",
+              "@capacitor/core": "^8.6.0",
+              "@capacitor/filesystem": "^8.0.0",
+              "@capacitor/share": "^8.0.0"
+            },
+            "devDependencies": {
+              "@capacitor/cli": "^8.6.0"
+            }
+          }
+          EOF_PKG
+          cat > capacitor.config.json <<'EOF_CFG'
+          {
+            "appId": "dz.inventaire.scan",
+            "appName": "Inventaire Scan",
+            "webDir": "www",
+            "server": { "url": "https://inventaire-br.github.io", "cleartext": false },
+            "android": { "allowMixedContent": false }
+          }
+          EOF_CFG
+      - run: npm install
+        working-directory: apk
+      - run: npx cap add android
+        working-directory: apk
+      - name: Camera et icone
+        working-directory: apk
+        run: |
+          M=android/app/src/main/AndroidManifest.xml
+          sed -i 's#</manifest>#    <uses-permission android:name="android.permission.CAMERA" />\n</manifest>#' $M
+          R=android/app/src/main/res
+          rm -rf $R/mipmap-anydpi-v26
+          for d in $R/mipmap-*; do
+            for f in ic_launcher.png ic_launcher_round.png ic_launcher_foreground.png; do
+              [ -f "$d/$f" ] && cp www/icon-192.png "$d/$f"
+            done
+          done
+          find $R -name 'splash.png' -exec cp www/icon-512.png {} \;
+      - run: npx cap sync android
+        working-directory: apk
+      - run: cd android && chmod +x gradlew && ./gradlew assembleDebug
+        working-directory: apk
+      - name: Publier l'APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp apk/android/app/build/outputs/apk/debug/app-debug.apk Inventaire-Scan.apk
+          gh release delete apk --yes --cleanup-tag || true
+          gh release create apk Inventaire-Scan.apk --title "Inventaire Scan (Android)" --notes "Installer Inventaire-Scan.apk sur le telephone Android."
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Inventaire-Scan-apk
+          path: Inventaire-Scan.apk
