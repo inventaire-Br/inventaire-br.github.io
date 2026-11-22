@@ -2,7 +2,8 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>try{var t=JSON.parse(localStorage.getItem('invscan_theme')||'null');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script>
 <title>Inventaire Scan</title>
 <meta name="theme-color" content="#2f4a63">
 <link rel="manifest" href="manifest.webmanifest">
@@ -45,11 +46,26 @@ button,input,select,textarea{font:inherit;color:inherit}
 .small{font-size:13px}
 .hidden{display:none!important}
 
-/* barre haute */
-.top{background:var(--steel);color:#fff;padding:10px 16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+/* barre haute : ligne marque + état, puis barre de contexte Session / Zone */
+.top{background:var(--steel);color:#fff;padding:8px 16px 10px;padding-top:max(8px,env(safe-area-inset-top));display:flex;flex-direction:column;gap:8px}
 :root[data-theme="dark"] .top{background:#1f3347}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .top{background:#1f3347}}
+.top-row{display:flex;align-items:center;gap:8px;min-width:0}
 .brand{display:flex;align-items:center;gap:8px;font-weight:700;letter-spacing:.02em;margin-right:auto}
+.ia{font-size:11px;font-weight:700;letter-spacing:.04em;padding:3px 7px;border-radius:999px;border:1px solid rgba(255,255,255,.35);color:rgba(255,255,255,.7);display:inline-flex;align-items:center;gap:5px}
+.ia::before{content:"";width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.4)}
+.ia.on{color:#fff}.ia.on::before{background:#4cc27f}
+.chip.off{background:#c23a2b;border-color:#c23a2b;color:#fff}
+.me{display:flex;align-items:center;gap:8px;border:0;background:none;color:#fff;cursor:pointer;padding:2px;border-radius:999px;min-width:0}
+.me .av{width:30px;height:30px;border-radius:50%;background:var(--accent);color:#1b2128;display:grid;place-items:center;font-weight:700;font-size:13px;flex:none}
+.me-t{display:flex;flex-direction:column;align-items:flex-start;line-height:1.15;min-width:0}
+.me-t b{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}.me-t small{font-size:11px;opacity:.75}
+@media (max-width:520px){.me-t{display:none}.brand span{display:none}}
+.ctx{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-width:980px;width:100%;margin:0 auto}
+.ctx button{display:flex;flex-direction:column;align-items:flex-start;gap:1px;min-width:0;text-align:left;cursor:pointer;color:#fff;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:6px 10px}
+.ctx button small{font-size:11px;opacity:.75;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.ctx button b{font-size:14px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ctx button.need{background:var(--accent);border-color:var(--accent);color:#1b2128}
 .brand i{display:inline-block;width:14px;height:14px;background:repeating-linear-gradient(135deg,var(--accent) 0 4px,#1b2128 4px 8px);border-radius:3px}
 .chip{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.08);color:#fff;border-radius:999px;padding:4px 10px;font-size:13px;cursor:pointer;max-width:100%}
 .chip b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
@@ -60,8 +76,8 @@ main{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:14
 .wrap{max-width:980px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:14px}
 
 /* onglets */
-.tabs{display:grid;grid-template-columns:repeat(5,1fr);background:var(--surface);border-top:1px solid var(--line)}
-.tabs button{border:0;background:none;padding:10px 4px 12px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;border-top:3px solid transparent}
+.tabs{display:grid;grid-template-columns:repeat(5,1fr);background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+.tabs button{border:0;background:none;padding:10px 4px 12px;min-height:56px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;border-top:3px solid transparent}
 .tabs button svg{width:22px;height:22px}
 .tabs button[aria-current="page"]{color:var(--ink);border-top-color:var(--accent)}
 
@@ -144,8 +160,36 @@ details summary{cursor:pointer;font-size:13px;color:var(--muted);font-weight:600
 .auth .brand{color:var(--ink);font-size:20px}
 td select{min-width:150px}
 #toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);z-index:50;display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none}
-#toast div{background:var(--ink);color:var(--surface);padding:9px 14px;border-radius:8px;font-size:14px;max-width:90vw}
+#toast div{background:var(--ink);color:var(--surface);padding:9px 14px;border-radius:8px;font-size:14px;max-width:90vw;display:flex;align-items:center;gap:12px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
 #toast div.bad{background:var(--bad);color:#fff}
+#toast div.ok{background:var(--ok);color:#fff}
+#toast button{pointer-events:auto;border:0;background:none;color:var(--accent);font-weight:700;cursor:pointer;padding:4px 2px;text-transform:uppercase;font-size:13px;letter-spacing:.03em}
+#toast div.ok button,#toast div.bad button{color:#fff;text-decoration:underline}
+/* résumé compact (vue Scanner) */
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.kpis div{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+.kpis b{display:block;font-size:20px;font-variant-numeric:tabular-nums;line-height:1.2}
+.kpis span{font-size:11px;color:var(--muted);font-weight:600}
+/* quantité : boutons − / + pour le pouce */
+.fq{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;color:var(--muted)}
+.stepper{display:flex;gap:6px}
+.stepper input{text-align:center;font-weight:700;font-size:17px}
+.stepper button{flex:none;width:46px;border:1px solid var(--line);background:var(--surface);border-radius:8px;font-size:20px;font-weight:700;cursor:pointer}
+/* liste de comptages en cartes sur téléphone */
+.slist{display:flex;flex-direction:column;gap:8px}
+.sitem{display:grid;grid-template-columns:52px 1fr;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px}
+.sitem .thumb{width:52px;height:52px}
+.sitem .kv{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:12px;color:var(--muted)}
+.sitem .kv b{color:var(--ink);font-weight:600}
+.sitem .acts{grid-column:1/-1;display:flex;gap:6px;justify-content:flex-end}
+.sitem.pend,tr.pend td{background:var(--warnbg)}
+img.thumb[data-big]{cursor:zoom-in}
+.lb{position:fixed;inset:0;background:rgba(10,14,18,.85);z-index:45;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px}
+.lb img{max-width:100%;max-height:75vh;border-radius:8px;background:#000}
+.lb .row{justify-content:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:var(--surface);padding:8px 14px;cursor:pointer;font-weight:600}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
 .stripe{height:6px;background:repeating-linear-gradient(135deg,var(--accent) 0 10px,var(--ink) 10px 20px);border-radius:3px;opacity:.85}
 .famrow{display:grid;grid-template-columns:1.4fr 1.6fr auto auto auto;gap:6px;align-items:center}
 @media (max-width:600px){.famrow{grid-template-columns:1fr 1fr}}
@@ -176,7 +220,11 @@ const norm=s=>String(s??'').toUpperCase().replace(/[\s\-_.\/\\:]/g,'');
 const slug=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'').slice(0,40)||'champ';
 const fmtDate=iso=>{try{const d=new Date(iso);return d.toLocaleDateString('fr-FR')+' '+d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}catch{return ''}};
 const LS={get(k,d){try{const v=localStorage.getItem('invscan_'+k);return v==null?d:JSON.parse(v)}catch{return d}},set(k,v){try{localStorage.setItem('invscan_'+k,JSON.stringify(v))}catch{}}};
-function toast(msg,kind){const t=document.createElement('div');t.textContent=msg;if(kind)t.className=kind;$('#toast').appendChild(t);setTimeout(()=>t.remove(),4200)}
+// message bref ; action facultative {label, fn} (ex. « Annuler » juste après un enregistrement)
+function toast(msg,kind,action){const t=document.createElement('div');const s=document.createElement('span');s.textContent=msg;t.appendChild(s);if(kind)t.className=kind;
+  if(action){const b=document.createElement('button');b.type='button';b.textContent=action.label;b.onclick=()=>{t.remove();action.fn()};t.appendChild(b)}
+  $('#toast').appendChild(t);setTimeout(()=>t.remove(),action?7000:4200)}
+const buzz=p=>{try{navigator.vibrate&&navigator.vibrate(p)}catch{}};
 const loaded={};
 function loadScript(src){return loaded[src]||(loaded[src]=new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>{delete loaded[src];rej(new Error('Bibliothèque non chargée (connexion ?)'))};document.head.appendChild(s)}))}
 const LIB={xlsx:'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
@@ -268,15 +316,50 @@ window.addEventListener('hashchange',()=>{const v=location.hash.slice(1);if(VIEW
 $$('#tabs button').forEach(b=>b.onclick=()=>go(b.dataset.v));
 
 function renderTop(){
-  const s=sessById(S.session),z=zoneById(S.zone);
-  $('#top').innerHTML=`<div class="brand"><i></i>Inventaire Scan</div>
-   <button class="chip ${s?'':'need'}" id="tSess" title="Session d'inventaire">Session : <b>${s?esc(s.name):'à choisir'}</b></button>
-   <button class="chip ${z?'':'need'}" id="tZone" title="Zone de comptage">Zone : <b>${z?esc(z.code||z.name):'à choisir'}</b></button>
-   <span class="chip static">${esc(ROLES[role()])}</span>
-   <button class="chip" id="tMe" title="Mon compte">${esc(S.profil?.nom||'Mon compte')}</button>
-   <span class="chip static" title="Lecture des photos par IA">${S.sample?'IA active':'IA indisponible'}</span>`;
-  $('#tSess').onclick=openSessions;$('#tZone').onclick=()=>go('zones');$('#tMe')&&($('#tMe').onclick=openMonCompte);
+  const s=sessById(S.session),z=zoneById(S.zone);const nm=S.profil?.nom||'Mon compte';
+  const ini=nm.split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('')||'?';const pend=Pending.count();
+  $('#top').innerHTML=`<div class="top-row"><div class="brand"><i></i><span>Inventaire Scan</span></div>
+   ${navigator.onLine?'':'<span class="chip static off" title="Pas de réseau : les comptages sont gardés sur ce téléphone">Hors ligne</span>'}
+   ${pend?`<button class="chip need" id="tPend" title="Comptages gardés sur ce téléphone, pas encore envoyés">${pend} à envoyer</button>`:''}
+   <span class="ia ${S.sample?'on':''}" title="${S.sample?'Lecture des photos par IA active':'Lecture IA indisponible : saisie manuelle'}">IA</span>
+   <button class="me" id="tMe" title="Mon compte"><span class="av" aria-hidden="true">${esc(ini)}</span><span class="me-t"><b>${esc(nm)}</b><small>${esc(ROLES[role()])}</small></span></button></div>
+   <div class="ctx"><button id="tSess" class="${s?'':'need'}" title="Changer de session d'inventaire"><small>Session</small><b>${s?esc(s.name):'À choisir'}</b></button>
+   <button id="tZone" class="${z?'':'need'}" title="Changer de zone de comptage"><small>Zone</small><b>${z?esc(z.code?z.code+' · '+z.name:z.name):'À choisir'}</b></button></div>`;
+  $('#tSess').onclick=openSessions;$('#tZone').onclick=()=>go('zones');$('#tMe').onclick=openMonCompte;
+  $('#tPend')&&($('#tPend').onclick=()=>{if(navigator.onLine){toast('Envoi en cours…');Pending.flush()}else toast('Toujours pas de réseau : l\'envoi se fera tout seul dès son retour.')});
 }
+
+/* ================= hors ligne : comptages gardés sur le téléphone puis envoyés ================= */
+const IDB={p:null,open(){return this.p||(this.p=new Promise((res,rej)=>{const r=indexedDB.open('invscan',1);r.onupgradeneeded=()=>r.result.createObjectStore('blobs');r.onsuccess=()=>res(r.result);r.onerror=()=>{this.p=null;rej(r.error)}}))},
+  async run(mode,fn){const db=await this.open();return new Promise((res,rej)=>{const tx=db.transaction('blobs',mode);const rq=fn(tx.objectStore('blobs'));tx.oncomplete=()=>res(rq.result);tx.onerror=()=>rej(tx.error)})},
+  put(k,v){return this.run('readwrite',s=>s.put(v,k))},get(k){return this.run('readonly',s=>s.get(k))},del(k){return this.run('readwrite',s=>s.delete(k))}};
+const isNetErr=e=>!navigator.onLine||/failed to fetch|networkerror|network request failed|load failed|err_internet|err_network/i.test(String(e?.message||e||''));
+const Pending={
+  list(){return LS.get('pending',[])},save(l){LS.set('pending',l)},
+  count(){return S.uid?this.list().filter(p=>p.doc.by===S.uid).length:0},
+  has(id){return this.list().some(p=>p.doc.id===id)},
+  async add(doc,blobs,edit){const all=this.list();const prev=all.find(p=>p.doc.id===doc.id); // fiche déjà en attente : on garde ses photos
+    const keys=prev?[...prev.keys]:[];for(const b of blobs||[]){const k='b_'+uid();try{await IDB.put(k,b);keys.push(k)}catch{}}
+    const l=all.filter(p=>p!==prev);l.push({doc,keys,edit:prev?prev.edit:!!edit});this.save(l);this.show(doc)},
+  show(doc){const o={...doc,_pending:true};const i=S.scans.findIndex(x=>x.id===o.id);if(i>=0)S.scans[i]=o;else S.scans.push(o);scheduleRender()},
+  restore(){for(const p of this.list())if(p.doc.by===S.uid)this.show(p.doc)},
+  async remove(id){const l=this.list();const p=l.find(x=>x.doc.id===id);if(!p)return;for(const k of p.keys)try{await IDB.del(k)}catch{}
+    this.save(l.filter(x=>x!==p));if(!p.edit)S.scans=S.scans.filter(x=>x.id!==id);scheduleRender()},
+  busy:false,
+  async flush(){if(this.busy||!navigator.onLine||!sb||!S.profil)return;if(!this.list().some(p=>p.doc.by===S.uid))return;this.busy=true;let ok=0;
+    try{for(const p of this.list()){if(p.doc.by!==S.uid)continue;
+        for(const k of [...p.keys]){const b=await IDB.get(k);if(b){const a=await S.assets.upload(b);p.doc.assetIds=[...(p.doc.assetIds||[]),a.id]}
+          p.keys=p.keys.filter(x=>x!==k);this.save(this.list().map(x=>x.doc.id===p.doc.id?p:x));try{await IDB.del(k)}catch{}}
+        const doc={...p.doc};delete doc._pending;
+        if(!p.edit)S.scans=S.scans.filter(x=>x.id!==doc.id); // absent de la liste → SBStore.put fait une insertion
+        try{await SBStore.put('scans',doc)}catch(e){if(e?.code!=='23505'){if(!p.edit)this.show(p.doc);throw e}} // 23505 : déjà arrivé lors d'un essai précédent
+        this.save(this.list().filter(x=>x.doc.id!==doc.id));ok++}}
+    catch(e){if(!isNetErr(e))toast('Envoi des comptages en attente impossible : '+(e?.message||e),'bad')}
+    finally{this.busy=false;if(ok)toast(`${ok} comptage(s) en attente envoyé(s)`,'ok');scheduleRender()}}
+};
+window.addEventListener('online',()=>{renderTop();Pending.flush()});
+window.addEventListener('offline',()=>{renderTop();toast('Réseau perdu : continuez à scanner, les comptages seront envoyés au retour du réseau.')});
+setInterval(()=>Pending.flush(),30000);
 function render(){
   renderTop();
   $$('#tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.v===S.view?'page':'false'));
@@ -294,8 +377,16 @@ function scansOf(sess,zone){return S.scans.filter(x=>x.sessionId===sess&&(!zone|
 function flagPills(s){return (s.flags||[]).map(f=>f==='doublon'?'<span class="pill bad">Doublon</span>':f==='autre_zone'?'<span class="pill warn">N° vu dans une autre zone</span>':f==='incomplet'?'<span class="pill warn">Incomplet</span>':f==='sans_etiquette'?'<span class="pill n">Sans étiquette</span>':f==='non_conforme'?'<span class="pill bad">Non conforme</span>':f==='meme_photo'?'<span class="pill bad">Même photo</span>':'').join(' ')}
 function scanLine(s){const fam=famById(s.familyId);const f=s.fields||{};const id=uniqueKeys(fam).map(k=>f[k]).find(Boolean)||f.lot||'';
   return `<div class="row between" style="border-bottom:1px solid var(--line);padding:6px 0">
-   <div class="row" style="flex-wrap:nowrap;min-width:0">${s.thumb?`<img class="thumb" src="${esc(s.thumb)}" alt="">`:''}<div style="min-width:0"><div><b>${esc(f.reference||f.designation||fam.name)}</b> <span class="mono small">${esc(id)}</span></div><div class="small muted">${esc(fam.name)} · ${esc(qtyTxt(s))} · ${esc(fmtDate(s.at))}</div></div></div>
-   <div>${flagPills(s)}</div></div>`}
+   <div class="row" style="flex-wrap:nowrap;min-width:0">${thumbImg(s)}<div style="min-width:0"><div><b>${esc(f.reference||f.designation||fam.name)}</b> <span class="mono small">${esc(id)}</span></div><div class="small muted">${esc(fam.name)} · ${esc(qtyTxt(s))} · ${esc(fmtDate(s.at))}</div></div></div>
+   <div>${pendPill(s)}${flagPills(s)}</div></div>`}
+const pendPill=s=>s._pending?'<span class="pill warn" title="Gardé sur ce téléphone, envoi au retour du réseau">À envoyer</span> ':'';
+const thumbImg=s=>s.thumb?`<img class="thumb" src="${esc(s.thumb)}" alt="Photo du produit" data-big="${esc(s.id)}">`:'';
+// photo agrandie au toucher d'une vignette
+document.addEventListener('click',e=>{const im=e.target.closest('img.thumb[data-big]');if(!im)return;const s=S.scans.find(x=>x.id===im.dataset.big);if(!s)return;
+  const lb=document.createElement('div');lb.className='lb';lb.setAttribute('role','dialog');lb.setAttribute('aria-modal','true');
+  lb.innerHTML=`<img src="${esc(s.thumb)}" alt="Photo du produit"><div class="row">${(s.assetIds||[]).slice(0,4).map((id,i)=>`<a class="btn sm" href="#" data-blob="${esc(id)}">Photo ${i+1} en pleine taille</a>`).join('')}<button class="btn sm" type="button">Fermer</button></div>`;
+  const close=()=>{lb.remove();document.removeEventListener('keydown',k)};const k=ev=>{if(ev.key==='Escape')close()};document.addEventListener('keydown',k);
+  lb.onclick=ev=>{if(ev.target===lb||ev.target.tagName==='BUTTON')close()};document.body.appendChild(lb)});
 const VIEWS={};const BIND={};
 VIEWS.scan=()=>{
   const s=sessById(S.session),z=zoneById(S.zone);
@@ -304,10 +395,12 @@ VIEWS.scan=()=>{
   if(!z)return `<div class="card"><h2>Identifiez d'abord la zone de comptage</h2><p class="muted">Chaque produit scanné est rattaché à une zone. Choisissez une zone existante ou créez-la en photographiant ou filmant ses limites.</p>
      <div class="grid2">${S.zones.map(z=>`<button class="big" data-zone="${esc(z.id)}"><strong>${esc(z.name)}</strong><span class="muted small">${esc(z.code||'')} ${esc(z.description||'')}</span></button>`).join('')}
      <button class="big primary" id="newZone"><strong>+ Nouvelle zone</strong><span class="muted small">Nom, photos ou vidéo des limites</span></button></div></div>`;
-  const fams=families();const recent=scansOf(S.session,S.zone).sort((a,b)=>String(b.at).localeCompare(String(a.at))).slice(0,8);
+  const fams=families();const inZone=scansOf(S.session,S.zone);const recent=inZone.slice().sort((a,b)=>String(b.at).localeCompare(String(a.at))).slice(0,8);
+  const today=new Date().toISOString().slice(0,10);const mineToday=scansOf(S.session).filter(x=>(x.by?x.by===S.uid:true)&&String(x.at).slice(0,10)===today).length;
   return `<div class="stripe"></div>
   <div class="card">
-    <div class="row between"><div><div class="small muted">Vous comptez dans</div><h2>${esc(z.name)} <span class="mono muted small">${esc(z.code||'')}</span></h2></div><span class="pill n">${scansOf(S.session,S.zone).length} scans dans cette zone</span></div>
+    <div><div class="small muted">Vous comptez dans</div><h2>${esc(z.name)} <span class="mono muted small">${esc(z.code||'')}</span></h2></div>
+    <div class="kpis"><div><b>${inZone.length}</b><span>Scans dans la zone</span></div><div><b>${inZone.reduce((a,x)=>a+pieces(x),0)}</b><span>Pièces dans la zone</span></div><div><b>${mineToday}</b><span>Mes scans aujourd'hui</span></div></div>
     <div class="grid2">
       <label class="f">Famille de produit<select id="scanFam"><option value="auto">Détection automatique${S.sample?' (IA)':''}</option>${fams.map(f=>`<option value="${esc(f.id)}" ${S.scanFamily===f.id?'selected':''}>${esc(f.name)}</option>`).join('')}</select></label>
       <label class="check" style="align-self:end"><input type="checkbox" id="enh" ${S.enhance?'checked':''}> Plaque gravée ou métal : renforcer le contraste</label>
@@ -335,14 +428,19 @@ BIND.scan=()=>{
 };
 
 /* ---------- vue Zones ---------- */
-VIEWS.zones=()=>`<div class="row between"><h2>Zones de comptage</h2><button class="btn primary" id="newZone">+ Nouvelle zone</button></div>
+VIEWS.zones=()=>{const q=norm(S.zoneQ||'');const done=S.zones.filter(z=>scansOf(S.session,z.id).length).length;
+  return `<div class="row between"><h2>Zones de comptage</h2><button class="btn primary" id="newZone">+ Nouvelle zone</button></div>
   <p class="muted small">Choisissez la zone avant de scanner. Chaque zone garde les photos ou la vidéo de ses limites pour que tout le monde compte au même endroit.</p>
-  ${S.zones.length?S.zones.slice().sort((a,b)=>String(a.code||a.name).localeCompare(String(b.code||b.name))).map(z=>`<div class="card zone-card ${z.id===S.zone?'cur':''}">
+  ${S.zones.length&&S.session?`<div class="card"><div class="row between small"><b>${done} / ${S.zones.length} zones ont déjà des comptages dans cette session</b><span class="muted">${Math.round(done/S.zones.length*100)} %</span></div>
+    <div style="height:8px;background:var(--bg);border:1px solid var(--line);border-radius:6px;overflow:hidden"><div style="height:100%;width:${(done/S.zones.length*100).toFixed(1)}%;background:var(--ok)"></div></div></div>`:''}
+  ${S.zones.length>6?`<input type="search" id="zQ" placeholder="Rechercher une zone (nom ou code)" value="${esc(S.zoneQ||'')}" aria-label="Rechercher une zone">`:''}
+  ${S.zones.length?S.zones.filter(z=>!q||norm(z.name+' '+(z.code||'')).includes(q)).sort((a,b)=>String(a.code||a.name).localeCompare(String(b.code||b.name))).map(z=>`<div class="card zone-card ${z.id===S.zone?'cur':''}">
     <div class="ph">${(z.thumbs||[]).slice(0,3).map(t=>`<img class="thumb" src="${esc(t)}" alt="">`).join('')||'<div class="thumb" style="background:var(--bg)"></div>'}</div>
     <div style="flex:1;min-width:0"><h3>${esc(z.name)} <span class="mono muted small">${esc(z.code||'')}</span></h3><div class="small muted">${esc(z.description||'')}</div>
       <div class="small">${scansOf(S.session,z.id).length} scans dans la session · ${z.videoId?'<a href="#" data-blob="'+esc(z.videoId)+'">vidéo des limites</a>':'pas de vidéo'}</div></div>
-    <div class="row">${z.id===S.zone?'<span class="pill ok">Zone actuelle</span>':`<button class="btn sm primary" data-pick="${esc(z.id)}">Compter ici</button>`}${canManage()?`<button class="btn sm" data-edit="${esc(z.id)}">Modifier</button>`:''}</div></div>`).join(''):'<div class="card"><p class="muted">Aucune zone. Créez la première, par exemple « Magasin A – Allée 3 ».</p></div>'}`;
-BIND.zones=()=>{$('#newZone').onclick=()=>openZone();$$('[data-pick]').forEach(b=>b.onclick=()=>{S.zone=b.dataset.pick;LS.set('zone',S.zone);go('scan')});$$('[data-edit]').forEach(b=>b.onclick=()=>openZone(zoneById(b.dataset.edit)))};
+    <div class="row">${z.id===S.zone?'<span class="pill ok">Zone actuelle</span>':`<button class="btn sm primary" data-pick="${esc(z.id)}">Compter ici</button>`}${canManage()?`<button class="btn sm" data-edit="${esc(z.id)}">Modifier</button>`:''}</div></div>`).join(''):'<div class="card"><p class="muted">Aucune zone. Créez la première, par exemple « Magasin A – Allée 3 ».</p></div>'}`};
+BIND.zones=()=>{$('#newZone').onclick=()=>openZone();
+  let tz;$('#zQ')&&($('#zQ').oninput=e=>{clearTimeout(tz);tz=setTimeout(()=>{S.zoneQ=e.target.value;render();const i=$('#zQ');i.focus();i.setSelectionRange(i.value.length,i.value.length)},250)});$$('[data-pick]').forEach(b=>b.onclick=()=>{S.zone=b.dataset.pick;LS.set('zone',S.zone);go('scan')});$$('[data-edit]').forEach(b=>b.onclick=()=>openZone(zoneById(b.dataset.edit)))};
 
 /* ---------- vue Comptage ---------- */
 const agentKey=s=>s.by||('n:'+(s.byName||'?'));
@@ -364,12 +462,25 @@ VIEWS.liste=()=>{
   <div class="card"><h3>Comptage par agent</h3><div class="tbl-wrap"><table><thead><tr><th>Agent</th><th class="num">Scans</th><th class="num">Pièces</th><th>Zones</th><th class="num">Alertes</th><th>Premier scan</th><th>Dernier scan</th></tr></thead><tbody>
    ${byAgent(all).map(a=>`<tr><td><button class="btn sm ghost" data-ag="${esc(a.k)}">${esc(a.nom)}</button></td><td class="num">${a.scans}</td><td class="num">${a.pieces}</td><td>${esc([...a.zones].join(' · '))}</td><td class="num">${a.alertes}</td><td class="small">${esc(fmtDate(a.premier))}</td><td class="small">${esc(fmtDate(a.dernier))}</td></tr>`).join('')||'<tr><td colspan="7" class="muted">Aucun comptage.</td></tr>'}
   </tbody></table></div></div>
-  <div class="tbl-wrap"><table><thead><tr><th>Photo</th><th>Famille</th><th>Référence</th><th>Désignation</th><th>N° lot</th><th>N° série</th><th class="num">Qté</th><th>Zone</th><th>Agent</th><th>Date</th><th>Alertes</th><th></th></tr></thead><tbody>
-  ${list.map(s=>{const f=s.fields||{},fam=famById(s.familyId),z=zoneById(s.zoneId);const ser=uniqueKeys(fam).filter(k=>k!=='lot').map(k=>f[k]).filter(Boolean).join(' / ');const mine=s.by&&s.by===S.uid;
-   return `<tr><td>${s.thumb?`<img class="thumb" src="${esc(s.thumb)}" alt="">`:''}</td><td>${esc(fam.name)}</td><td class="mono">${esc(f.reference||'')}</td><td>${esc(f.designation||(f.marquage?'Marquage : '+f.marquage:'')||f.marque||'')}</td><td class="mono">${esc(f.lot||'')}</td><td class="mono">${esc(ser)}</td><td class="num">${esc(qtyTxt(s))}</td><td>${esc(z?.code||z?.name||'?')}</td><td>${esc(who(s))}</td><td class="small">${esc(fmtDate(s.at))}</td><td>${flagPills(s)}</td>
-   <td>${(canManage()||mine)?`<div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-ed="${esc(s.id)}">Modifier</button><button class="btn sm danger" data-del="${esc(s.id)}" aria-label="Supprimer">✕</button></div>`:''}</td></tr>`}).join('')||'<tr><td colspan="12" class="muted">Aucun comptage.</td></tr>'}
-  </tbody></table></div>`;
+  ${scanRows(list)}`;
 };
+// lignes de comptage : tableau sur grand écran, cartes sur téléphone ; affichage par paquets de 100
+const NARROW=matchMedia('(max-width:700px)');NARROW.addEventListener?.('change',()=>{if(S.view==='liste')scheduleRender()});
+function scanRows(list){
+  const shown=list.slice(0,S.listMax||100);const more=list.length-shown.length;
+  const info=s=>{const f=s.fields||{},fam=famById(s.familyId),z=zoneById(s.zoneId);return {f,fam,z,ser:uniqueKeys(fam).filter(k=>k!=='lot').map(k=>f[k]).filter(Boolean).join(' / '),des:f.designation||(f.marquage?'Marquage : '+f.marquage:'')||f.marque||'',
+    acts:(canManage()||(s.by&&s.by===S.uid))?`<button class="btn sm" data-ed="${esc(s.id)}">Modifier</button><button class="btn sm danger" data-del="${esc(s.id)}" aria-label="Supprimer ce comptage">✕</button>`:''}};
+  const moreBtn=more>0?`<div class="row" style="justify-content:center"><button class="btn" id="lMore">Afficher ${Math.min(100,more)} de plus (${more} restant${more>1?'s':''})</button></div>`:'';
+  if(NARROW.matches)return `<div class="slist">${shown.map(s=>{const x=info(s);return `<div class="sitem ${s._pending?'pend':''}">${thumbImg(s)||'<div class="thumb" style="background:var(--bg)"></div>'}
+     <div style="min-width:0"><div><b>${esc(x.f.reference||x.des||x.fam.name)}</b></div>${x.f.reference&&x.des?`<div class="small">${esc(x.des)}</div>`:''}
+     <div class="kv">${x.f.lot?`<span>Lot <b class="mono">${esc(x.f.lot)}</b></span>`:''}${x.ser?`<span>Série <b class="mono">${esc(x.ser)}</b></span>`:''}<span>Qté <b>${esc(qtyTxt(s))}</b></span><span>${esc(x.z?.code||x.z?.name||'?')}</span><span>${esc(who(s))}</span><span>${esc(fmtDate(s.at))}</span></div>
+     <div>${pendPill(s)}${flagPills(s)}</div></div>${x.acts?`<div class="acts">${x.acts}</div>`:''}</div>`}).join('')||'<div class="card muted">Aucun comptage.</div>'}</div>${moreBtn}`;
+  return `<div class="tbl-wrap"><table><thead><tr><th>Photo</th><th>Famille</th><th>Référence</th><th>Désignation</th><th>N° lot</th><th>N° série</th><th class="num">Qté</th><th>Zone</th><th>Agent</th><th>Date</th><th>Alertes</th><th></th></tr></thead><tbody>
+  ${shown.map(s=>{const x=info(s);
+   return `<tr class="${s._pending?'pend':''}"><td>${thumbImg(s)}</td><td>${esc(x.fam.name)}</td><td class="mono">${esc(x.f.reference||'')}</td><td>${esc(x.des)}</td><td class="mono">${esc(x.f.lot||'')}</td><td class="mono">${esc(x.ser)}</td><td class="num">${esc(qtyTxt(s))}</td><td>${esc(x.z?.code||x.z?.name||'?')}</td><td>${esc(who(s))}</td><td class="small">${esc(fmtDate(s.at))}</td><td>${pendPill(s)}${flagPills(s)}</td>
+   <td>${x.acts?`<div class="row" style="flex-wrap:nowrap">${x.acts}</div>`:''}</td></tr>`}).join('')||'<tr><td colspan="12" class="muted">Aucun comptage.</td></tr>'}
+  </tbody></table></div>${moreBtn}`;
+}
 BIND.liste=()=>{
   $('#goSess')&&($('#goSess').onclick=openSessions);if(!$('#fZone'))return;
   $('#fZone').onchange=e=>{S.filters.zone=e.target.value;render()};$('#fAg').onchange=e=>{S.filters.agent=e.target.value;render()};
@@ -378,7 +489,8 @@ BIND.liste=()=>{
   let tm;$('#fQ').oninput=e=>{clearTimeout(tm);tm=setTimeout(()=>{S.filters.q=e.target.value;render();const i=$('#fQ');i.focus();i.setSelectionRange(i.value.length,i.value.length)},350)};
   $('#xlsScans').onclick=exportScans;
   $$('[data-ed]').forEach(b=>b.onclick=()=>{const s=S.scans.find(x=>x.id===b.dataset.ed);if(s)openValidation({edit:s})});
-  $$('[data-del]').forEach(b=>b.onclick=async()=>{if(await ask('Supprimer ce comptage ?','Supprimer',true)){try{await Store.del('scans',b.dataset.del);toast('Comptage supprimé')}catch(e){dbErr(e)}}});
+  $$('[data-del]').forEach(b=>b.onclick=async()=>{if(await ask('Supprimer ce comptage ?','Supprimer',true)){try{const id=b.dataset.del;if(Pending.has(id))await Pending.remove(id);else await Store.del('scans',id);toast('Comptage supprimé')}catch(e){dbErr(e)}}});
+  $('#lMore')&&($('#lMore').onclick=()=>{S.listMax=(S.listMax||100)+100;render()});
 };
 
 /* ================= sessions ================= */
@@ -568,7 +680,7 @@ function renderValidation(d){
         return `<label class="f fld" for="fx_${esc(f.key)}"><span class="row" style="gap:4px">${esc(f.label)}${f.required?' *':''}${f.unique?' <span class="pill n">unique</span>':''}${low?' <span class="pill warn">À vérifier</span>':''}</span>
         <input type="text" id="fx_${esc(f.key)}" data-k="${esc(f.key)}" value="${esc(v)}" class="${low?'low':''} ${f.required&&!v?'missing':''} ${f.unique||['lot','serie','reference','gtin','marquage'].includes(f.key)?'mono':''}" autocomplete="off"></label>`}).join('')}</div>
       ${d.suggest?`<div class="alert info small">Aucune famille ne correspond vraiment. Famille proposée : <b>${esc(d.suggest.nom)}</b>${Array.isArray(d.suggest.champs)?' ('+esc(d.suggest.champs.join(', '))+')':''}. ${isAdmin()?'<button type="button" class="btn sm" id="vSug">Créer cette famille</button>':'Demandez à l\'administrateur de la créer.'}</div>`:''}
-      <div class="grid2"><label class="f">Quantité comptée<input type="number" id="vQty" min="0" step="any" value="${esc(d.qty)}"></label>
+      <div class="grid2"><div class="fq"><label for="vQty">Quantité comptée</label><div class="stepper"><button type="button" id="vMinus" aria-label="Diminuer la quantité">−</button><input type="number" id="vQty" min="0" step="any" inputmode="decimal" value="${esc(d.qty)}"><button type="button" id="vPlus" aria-label="Augmenter la quantité">+</button></div></div>
         ${hasCarton(fam)?`<label class="f">Unité comptée<select id="vUnit"><option value="piece" ${d.unit!=='carton'?'selected':''}>Pièces</option><option value="carton" ${d.unit==='carton'?'selected':''}>Cartons</option></select></label>`:''}
         <label class="f">État constaté<input type="text" id="vEtat" value="${esc(d.etat||'')}" placeholder="NC, quarantaine, abîmé…"></label>
         <label class="f">Remarque<input type="text" id="vNote" value="${esc(d.note||'')}" placeholder="Emballage abîmé…"></label></div>
@@ -591,7 +703,7 @@ function renderValidation(d){
     $('#vPcs').textContent=d.unit==='carton'?(num(d.fields.qte_carton)?`Soit ${pieces(d)} pièces (${d.qty} carton(s) × ${num(d.fields.qte_carton)}).`:'Renseignez le nombre de pièces par carton pour calculer le total.'):''};
   const warn=()=>{collect();const r=dupCheck(d,d.editId);let h='';
     if(r.flags.includes('non_conforme'))h+=`<div class="alert bad">Produit marqué <b>non conforme</b> (${esc(d.etat)}). Il sera compté à part dans l'analyse.</div>`;
-    const blocked=!ctx.edit&&r.block.length>0;
+    const blocked=!ctx.edit&&r.block.length>0;if(blocked&&!d.buzzed){d.buzzed=true;buzz([90,60,90])}
     if(r.msgs.length)h+=`<div class="alert ${r.block.length?'bad':''}">${r.msgs.join('<br>')}${blocked?'<br><span class="small">Ce produit semble déjà compté. Annulez, ou ajoutez la quantité à la ligne existante.</span>':'<br><span class="small">Vous pouvez quand même enregistrer : le comptage sera signalé dans l\'analyse.</span>'}</div>`;
     $('#vBlock').classList.toggle('hidden',!blocked);$('#vActions').classList.toggle('hidden',blocked);
     $('#vB2').classList.toggle('hidden',!(r.block[0]&&r.block[0].familyId===d.familyId));
@@ -603,7 +715,9 @@ function renderValidation(d){
   warn();
   $$('.pics img').forEach(im=>im.onclick=()=>im.classList.toggle('zoom'));
   $$('[data-k]').forEach(i=>i.addEventListener('input',()=>{i.classList.remove('low');warn()}));
-  ['#vQty','#vEtat'].forEach(s=>$(s).addEventListener('input',warn));$('#vUnit')&&($('#vUnit').onchange=()=>{d.unitTouched=true;warn()});
+  ['#vQty','#vEtat'].forEach(s=>$(s).addEventListener('input',warn));
+  const step=k=>{const q=$('#vQty');const v=q.value===''?1:+q.value||0;q.value=String(Math.max(0,Math.round((v+k)*1000)/1000));warn()};
+  $('#vMinus').onclick=()=>step(-1);$('#vPlus').onclick=()=>step(1);$('#vUnit')&&($('#vUnit').onchange=()=>{d.unitTouched=true;warn()});
   $('#vMore')&&($('#vMore').onchange=e=>{const f=e.target.files[0];e.target.value='';if(!f)return;const files=[...(ctx.files||[]),f].slice(0,4);openValidation({...ctx,files,familyId:d.familyId})});
   $('#vSug')&&($('#vSug').onclick=()=>{const nm=d.suggest.nom;const fl=(Array.isArray(d.suggest.champs)?d.suggest.champs:[]).map(l=>({key:slug(l),label:String(l)}));S.queue=[];openFamily(null,{name:nm,fields:fl.length?fl:undefined})});
   $('#vFam').onchange=e=>{collect();d.familyId=e.target.value;renderValidation(d)};
@@ -616,27 +730,36 @@ function renderValidation(d){
       upd.pieces=pieces(upd);await Store.put('scans',upd);toast(`Quantité mise à jour : ${qtyTxt(upd)}`);S.qi++;nextInQueue()}catch(e){dbErr(e);b.disabled=false}};
   $('#vRetry')&&($('#vRetry').onclick=()=>{openValidation({...ctx})});
   $('#vForm').onsubmit=async e=>{e.preventDefault();const r=warn();const btn=$('#vSave');btn.disabled=true;btn.textContent='Enregistrement…';
-    try{await saveScan(d,r);toast(ctx.edit?'Comptage modifié':'Produit enregistré');
+    try{const res=await saveScan(d,r);buzz(40);
+      if(res.pending)toast(ctx.edit?'Modification gardée sur le téléphone : envoi au retour du réseau':'Gardé sur le téléphone : envoi au retour du réseau');
+      else if(ctx.edit)toast('Comptage modifié','ok');
+      else toast('Produit enregistré','ok',{label:'Annuler',fn:()=>undoScan(res.id)});
       if(ctx.edit){closeModal()}else{S.qi++;nextInQueue()}}
     catch(err){dbErr(err);btn.disabled=false;warn()}};
   const first=$$('[data-k]').find(i=>i.classList.contains('missing')||i.classList.contains('low'));if(first)first.focus();
 }
 
+async function undoScan(id){try{if(Pending.has(id))await Pending.remove(id);else await Store.del('scans',id);toast('Enregistrement annulé')}catch(e){dbErr(e)}}
 async function saveScan(d,r){
   if(!d.editId&&!placeOk(1))throw {code:'limite',message:'limite atteinte'};
   const fam=famById(d.familyId);const fields={};for(const f of fam.fields||[])if(d.fields[f.key])fields[f.key]=d.fields[f.key];
   const flags=[...r.flags];if(d.noLabel)flags.push('sans_etiquette');
-  let assetIds=d.assetIds||[];
-  if(S.assets&&d.imgs.length){for(const im of d.imgs){try{const a=await S.assets.upload(im.blob);assetIds.push(a.id)}catch{}}}
+  let assetIds=[...(d.assetIds||[])];const waiting=[]; // photos à envoyer plus tard (hors ligne)
+  if(S.assets&&d.imgs.length){for(const im of d.imgs){if(waiting.length||!navigator.onLine){waiting.push(im.blob);continue}
+    try{const a=await S.assets.upload(im.blob);assetIds.push(a.id)}catch(e){if(isNetErr(e))waiting.push(im.blob)}}}
   const base=d.editId?(S.scans.find(s=>s.id===d.editId)||{}):{};
-  const doc={...base,id:d.editId||undefined,sessionId:base.sessionId||S.session,zoneId:base.zoneId||S.zone,familyId:fam.id,fields,qty:d.qty,unit:hasCarton(fam)?(d.unit||'piece'):'piece',etat:d.etat||'',note:d.note||'',
+  const doc={...base,id:d.editId||uid(),sessionId:base.sessionId||S.session,zoneId:base.zoneId||S.zone,familyId:fam.id,fields,qty:d.qty,unit:hasCarton(fam)?(d.unit||'piece'):'piece',etat:d.etat||'',note:d.note||'',
     codes:(d.codes||[]).slice(0,5),raw:String(d.raw||'').slice(0,1500),answers:d.answers||null,noLabel:!!d.noLabel,flags,gtin:d.gtin||null,
     thumb:d.imgs[0]?.thumb||d.thumb||null,assetIds,photos:[...(base.photos||[]),...d.imgs.map(im=>im.hash).filter(Boolean)].slice(0,6),
     at:base.at||new Date().toISOString(),by:base.by||S.uid||null,byName:base.byName||(S.mode==='local'?(S.localName||'Moi'):null)};
   doc.pieces=pieces(doc);
   if(d.editId)doc.editedAt=new Date().toISOString();
-  if(!doc.id)delete doc.id;
-  await Store.put('scans',doc);
+  delete doc._pending;
+  const edit=!!d.editId&&!Pending.has(d.editId); // une fiche encore en attente reste une insertion
+  if(S.mode==='supabase'&&(waiting.length||!navigator.onLine||Pending.has(doc.id))){await Pending.add(doc,waiting,edit);return {id:doc.id,pending:true}}
+  try{await Store.put('scans',doc)}
+  catch(e){if(S.mode==='supabase'&&isNetErr(e)){await Pending.add(doc,waiting,edit);return {id:doc.id,pending:true}}throw e}
+  return {id:doc.id,pending:false};
 }
 
 /* ---------- produit sans plaque ---------- */
@@ -819,6 +942,8 @@ VIEWS.reglages=()=>`
    :`<p>Mode local : les données restent dans le navigateur de cet appareil. Elles ne sont pas partagées et peuvent être effacées avec l'historique du navigateur. Exportez régulièrement une sauvegarde.</p>`}
    <div><div class="small"><b>${totalDocs()}</b> comptages sur <b>${LIMITE}</b> autorisés</div><div style="height:8px;background:var(--bg);border:1px solid var(--line);border-radius:6px;overflow:hidden"><div style="height:100%;width:${Math.min(100,totalDocs()/LIMITE*100).toFixed(1)}%;background:${totalDocs()>LIMITE*0.9?'var(--bad)':totalDocs()>LIMITE*0.7?'var(--warn)':'var(--ok)'}"></div></div></div>
    <div class="row"><button class="btn sm" id="bkOut">Exporter une sauvegarde (JSON)</button><label class="btn sm">Importer une sauvegarde<input type="file" accept=".json" id="bkIn" class="hidden"></label></div></div>
+  <div class="card"><h3>Apparence</h3><div class="seg" role="group" aria-label="Thème">${[['auto','Automatique'],['light','Clair'],['dark','Sombre']].map(([k,l])=>`<button type="button" data-theme-set="${k}" aria-pressed="${(LS.get('theme','auto')||'auto')===k}">${l}</button>`).join('')}</div>
+   <p class="small muted">« Sombre » économise la batterie et gêne moins dans un magasin peu éclairé. Ce réglage reste sur cet appareil.</p></div>
   ${S.mode==='local'?`<div class="card"><h3>Profil sur cet appareil</h3><div class="grid2"><label class="f">Votre nom<input type="text" id="lName" value="${esc(S.localName)}"></label>
      <label class="f">Rôle (essai)<select id="lRole">${Object.entries(ROLES).map(([k,v])=>`<option value="${k}" ${S.localRole===k?'selected':''}>${v}</option>`).join('')}</select></label></div></div>`:''}
   ${isAdmin()&&S.mode==='supabase'?accesCard():''}
@@ -836,6 +961,7 @@ BIND.reglages=()=>{
   $('#lName')&&($('#lName').onchange=e=>{S.localName=e.target.value.trim();LS.set('localName',S.localName)});
   $('#lRole')&&($('#lRole').onchange=e=>{S.localRole=e.target.value;LS.set('localRole',S.localRole);render()});
   $('#famNew')&&($('#famNew').onclick=()=>openFamily());
+  $$('[data-theme-set]').forEach(b=>b.onclick=()=>{const t=b.dataset.themeSet;LS.set('theme',t);if(t==='auto')delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=t;render()});
   $('#autoTest')&&($('#autoTest').onclick=runAutoTest);
   bindAcces();
   $('#supaAll')&&($('#supaAll').onclick=()=>supaSync(S.sessions.map(s=>s.id)));
@@ -1077,8 +1203,8 @@ async function enter(session){
   S.profil=p;authShow('<div class="row"><div class="spinner"></div><span>Chargement des données…</span></div>');
   try{await SBStore.load()}catch(e){return authLogin('Chargement impossible : '+(e.message||e))}
   S.session=LS.get('session',null);pickDefaultSession();if(S.zone&&!zoneById(S.zone))S.zone=null;
-  SBStore.subscribe();$('#auth').classList.add('hidden');render();
-  iaWarm();
+  Pending.restore();SBStore.subscribe();$('#auth').classList.add('hidden');render();
+  iaWarm();Pending.flush();
 }
 // préchauffage du serveur IA : la première lecture reste sous 5 s
 function iaWarm(){if(sb&&S.profil)sb.functions.invoke('lire-photo',{method:'GET'}).catch(()=>{})}
