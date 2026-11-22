@@ -1075,7 +1075,12 @@ async function enter(session){
   try{await SBStore.load()}catch(e){return authLogin('Chargement impossible : '+(e.message||e))}
   S.session=LS.get('session',null);pickDefaultSession();if(S.zone&&!zoneById(S.zone))S.zone=null;
   SBStore.subscribe();$('#auth').classList.add('hidden');render();
+  iaWarm();
 }
+// préchauffage du serveur IA : la première lecture reste sous 5 s
+function iaWarm(){if(sb&&S.profil)sb.functions.invoke('lire-photo',{method:'GET'}).catch(()=>{})}
+setInterval(()=>{if(document.visibilityState==='visible')iaWarm()},240000);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')iaWarm()});
 const sb_onAuth=()=>sb.auth.onAuthStateChange((ev)=>{if(ev==='SIGNED_OUT'){S.profil=null;for(const k in TBL)S[k]=[];authLogin()}});
 
 /* ---------- mon compte ---------- */
