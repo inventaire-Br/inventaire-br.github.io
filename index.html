@@ -460,7 +460,7 @@ const hasCarton=fam=>(fam.fields||[]).some(f=>f.key==='qte_carton');
 /* ================= lecture IA ================= */
 function parseJSON(t){if(t&&typeof t==='object')return t;const s=String(t||'');const a=s.indexOf('{'),b=s.lastIndexOf('}');if(a<0||b<a)throw new Error('Réponse IA illisible');return JSON.parse(s.slice(a,b+1))}
 const AI_MAX_MS=5000; // délai maximum d'attente de la lecture IA
-async function aiExtract({blobs,family,codes,answers,noLabel}){
+async function aiExtract({blobs,family,codes,answers,noLabel,maxMs}){
   if(!S.sample)return null;
   const fams=family?[family]:families();
   const famTxt=fams.map(f=>({id:f.id,nom:f.name,champs:(f.fields||[]).map(x=>({cle:x.key,libelle:x.label,indices:x.hints||undefined}))}));
@@ -484,8 +484,8 @@ Réponds UNIQUEMENT avec ce JSON :
 {"famille_id":"…","champs":{"cle":"valeur ou null"},"confiance":{"cle":0.0},"codes_lus":[],"etat":"","texte_lu":"transcription courte du texte visible","remarques":"problèmes de lecture éventuels, en français, ou chaîne vide"${family?'':',"famille_suggeree":null ou {"nom":"…","champs":["…"]}'}}`;
   const opts={modelTier:'default'};
   if(blobs.length&&S.aiImages)opts.images=blobs.slice(0,6);
-  try{const r=await Promise.race([S.sample(prompt,opts),new Promise((_,ko)=>setTimeout(()=>ko({code:'timeout'}),AI_MAX_MS))]);return parseJSON(r.text)}
-  catch(e){if(e?.code==='not_granted'){S.sample=null;renderTop()}else if(e?.code==='timeout'||e?.code==='TIMEOUT')toast('IA trop lente (plus de 5 s) : complétez à la main ou relancez la lecture.','bad');else if(e?.code==='rate_limited')toast('IA momentanément saturée, saisissez à la main ou relancez dans un instant.','bad');else toast('Lecture IA impossible : '+(e?.message||e),'bad');return null}
+  try{const r=await Promise.race([S.sample(prompt,opts),new Promise((_,ko)=>setTimeout(()=>ko({code:'timeout'}),maxMs||AI_MAX_MS))]);return parseJSON(r.text)}
+  catch(e){if(e?.code==='not_granted'){S.sample=null;renderTop()}else if(e?.code==='timeout'||e?.code==='TIMEOUT')toast('IA trop lente (plus de 5 s) : saisie manuelle.','bad');else if(e?.code==='rate_limited')toast('IA momentanément saturée, saisissez à la main ou relancez dans un instant.','bad');else toast('Lecture IA impossible : '+(e?.message||e),'bad');return null}
 }
 
 /* ================= file de scan + validation ================= */
@@ -494,12 +494,15 @@ function nextInQueue(){if(S.qi>=S.queue.length){const n=S.queue.length;S.queue=[
   openValidation({files:[S.queue[S.qi]],idx:S.qi+1,total:S.queue.length})}
 
 async function analyse(ctx){
+  const t0=Date.now(); // tout le traitement (photo + IA) tient en 5 s, sinon saisie manuelle
   const imgs=[];for(const f of ctx.files||[]){try{imgs.push(await prepImage(f))}catch(e){toast(e.message,'bad')}}
   const fixed=ctx.familyId&&ctx.familyId!=='auto'?famById(ctx.familyId):(S.scanFamily!=='auto'?famById(S.scanFamily):null);
   // lecture des codes-barres et lecture IA en parallèle (IA : une image réduite par photo, réponse en 5 s max)
   const codesP=(async()=>{const codes=[];for(const im of imgs){(await readCodes(im.big)).forEach(c=>codes.push(c));if(im.enh&&!codes.length)(await readCodes(im.enh)).forEach(c=>codes.push(c))}return codes})();
   const blobs=imgs.map(im=>im.aiBlob||im.blob);
-  const [codes,ai]=await Promise.all([codesP,aiExtract({blobs,family:fixed,codes:[],answers:ctx.answers,noLabel:ctx.noLabel})]);
+  const reste=()=>Math.max(0,AI_MAX_MS-(Date.now()-t0));
+  const ai=await aiExtract({blobs,family:fixed,codes:[],answers:ctx.answers,noLabel:ctx.noLabel,maxMs:Math.max(1000,reste())});
+  const codes=await Promise.race([codesP,new Promise(r=>setTimeout(()=>r([]),reste()))]);
   const gs={};codes.forEach(c=>Object.assign(gs,parseGS1(c.value)));
   let fam=fixed||(ai?.famille_id?famById(ai.famille_id):null)||GENERIC;
   const fields={},conf={};
