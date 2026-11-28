@@ -651,15 +651,21 @@ function autoLevels(src){
   const k=1/Math.max(1,hi-lo),lut=new Uint8ClampedArray(256);for(let v=0;v<256;v++)lut[v]=Math.round(255*Math.pow(Math.max(0,Math.min(1,(v-lo)*k)),.85));
   for(let i=0;i<a.length;i+=4){a[i]=lut[a[i]];a[i+1]=lut[a[i+1]];a[i+2]=lut[a[i+2]]}
   x.putImageData(img,0,0);return c}
+// 1re étape rapide : l'image pour l'IA (1280 px, ~150 Ko) part tout de suite ; le reste se prépare pendant l'envoi
 async function prepImage(file){
-  const bmp=await loadBitmap(file);const big=scaled(bmp,1600);const th=scaled(bmp,360);
-  const quality=photoQuality(big);
-  // une seule image de 1600 px : petits caractères lisibles, taille limitée (~600 Ko au plus)
-  let blob=await toBlob(big,.82);if(blob.size>600000)blob=await toBlob(big,.7);
-  const aiBlob=quality.fix?await toBlob(autoLevels(big),.82):blob;
-  const out={big,blob,aiBlob,quality,thumb:th.toDataURL('image/jpeg',.6),preview:URL.createObjectURL(file)};
-  if(S.enhance){out.enh=enhanced(big);out.enhBlob=await toBlob(out.enh,.9)}
-  out.hash=await photoHash(file,bmp);
+  const bmp=await loadBitmap(file);const ia=scaled(bmp,1280);
+  const quality=photoQuality(ia);
+  const aiBlob=await toBlob(quality.fix?autoLevels(ia):ia,.8);
+  const out={aiBlob,quality,preview:URL.createObjectURL(file)};
+  out.rest=(async()=>{
+    await new Promise(r=>setTimeout(r,0)); // laisse partir l'envoi à l'IA
+    const big=scaled(bmp,1600);out.big=big;
+    // photo gardée : 1600 px, taille limitée (~600 Ko au plus)
+    let blob=await toBlob(big,.82);if(blob.size>600000)blob=await toBlob(big,.7);out.blob=blob;
+    out.thumb=scaled(bmp,360).toDataURL('image/jpeg',.6);
+    if(S.enhance){out.enh=enhanced(big);out.enhBlob=await toBlob(out.enh,.9)}
+    out.hash=await photoHash(file,bmp);
+  })();
   return out;
 }
 async function photoHash(file,bmp){
@@ -740,11 +746,12 @@ async function analyse(ctx){
   const t0=Date.now(); // tout le traitement (photo + IA) tient en 10 s, sinon saisie manuelle
   const imgs=[];for(const f of ctx.files||[]){try{imgs.push(await prepImage(f))}catch(e){toast(e.message,'bad')}}
   const fixed=ctx.familyId&&ctx.familyId!=='auto'?famById(ctx.familyId):(S.scanFamily!=='auto'?famById(S.scanFamily):null);
-  // lecture des codes-barres et lecture IA en parallèle (IA : une image de 1600 px par photo, réponse en 10 s max)
-  const codesP=(async()=>{const codes=[];for(const im of imgs){(await readCodes(im.big)).forEach(c=>codes.push(c));if(im.enh&&!codes.length)(await readCodes(im.enh)).forEach(c=>codes.push(c))}return codes})();
-  const blobs=imgs.map(im=>im.aiBlob||im.blob);
+  // l'IA part en premier ; préparation des photos et lecture des codes-barres pendant qu'elle travaille (réponse en 10 s max)
   const reste=()=>Math.max(0,AI_MAX_MS-(Date.now()-t0));
-  const ai=await aiExtract({blobs,family:fixed,codes:[],answers:ctx.answers,noLabel:ctx.noLabel,maxMs:Math.max(1000,reste())});
+  const aiP=aiExtract({blobs:imgs.map(im=>im.aiBlob),family:fixed,codes:[],answers:ctx.answers,noLabel:ctx.noLabel,maxMs:Math.max(1000,reste())});
+  await Promise.all(imgs.map(im=>im.rest));
+  const codesP=(async()=>{const codes=[];for(const im of imgs){(await readCodes(im.big)).forEach(c=>codes.push(c));if(im.enh&&!codes.length)(await readCodes(im.enh)).forEach(c=>codes.push(c))}return codes})();
+  const ai=await aiP;
   const codes=await Promise.race([codesP,new Promise(r=>setTimeout(()=>r([]),reste()))]);
   const gs={};codes.forEach(c=>Object.assign(gs,parseGS1(c.value)));
   let fam=fixed||(ai?.famille_id?famById(ai.famille_id):null)||GENERIC;
@@ -753,7 +760,7 @@ async function analyse(ctx){
   for(const v of (Array.isArray(ai?.codes_lus)?ai.codes_lus:[])){const val=String(v).trim();if(val&&!codes.some(c=>norm(c.value)===norm(val))){codes.push({format:'lu sur la photo',value:val});Object.assign(gs,{...parseGS1(val),...gs})}}
   for(const k of ['lot','serie','date_fab','date_exp','gtin'])if(gs[k]&&(fam.fields||[]).some(f=>f.key===k)&&!fields[k]){fields[k]=gs[k];conf[k]=Math.max(conf[k]||0,.9)}
   for(const k of uniqueKeys(fam))if(isGtin(fields[k])&&gs.gtin&&norm(fields[k])===norm(gs.gtin)){delete fields[k]} // un EAN n'est pas un n° de série
-  if(!ai&&codes.length===1&&!Object.keys(gs).length){const uk=uniqueKeys(fam)[0];if(uk&&!fields[uk]){fields[uk]=codes[0].value;conf[uk]=.5}}
+  if(!ai&&codes.length===1&&!Object.keys(gs).length&&!/^(https?:|www\.)/i.test(codes[0].value)){/* un lien (QR code) n'est jamais un n° de série */const uk=uniqueKeys(fam)[0];if(uk&&!fields[uk]){fields[uk]=codes[0].value;conf[uk]=.5}}
   const etat=String(ai?.etat||'').trim();
   return {familyId:fam.id,fields,conf,qty:1,unit:'piece',codes,raw:ai?.texte_lu||'',remark:ai?.remarques||'',imgs,quality:[...new Set(imgs.flatMap(im=>im.quality?.warn||[]))],answers:ctx.answers||null,noLabel:!!ctx.noLabel,gtin:gs.gtin||null,usedAI:!!ai,
     etat,suggest:(fam.id==='generique'&&ai?.famille_suggeree&&ai.famille_suggeree.nom)?ai.famille_suggeree:null};
