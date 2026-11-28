@@ -14,26 +14,26 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
 /* Layout : application mobile d'abord — barre d'état en haut, une vue à la fois, onglets en bas (pouce). */
 :root{
-  --bg:#eef0f2; --surface:#ffffff; --ink:#1b2128; --muted:#5d6874; --line:#d5dade;
-  --accent:#f2b705; --accent-ink:#1b2128; --steel:#2f4a63;
-  --ok:#1f8a4c; --warn:#b86e00; --bad:#c23a2b; --okbg:#e3f3ea; --warnbg:#fff2d6; --badbg:#fbe5e2;
-  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --bg:#e7ebee; --surface:#fcfcfb; --ink:#17232d; --muted:#596773; --line:#d3d9de;
+  --accent:#ffb81c; --accent-ink:#17232d; --steel:#17232d;
+  --ok:#17855a; --warn:#a86400; --bad:#c4342b; --okbg:#e1f2e9; --warnbg:#fff1d2; --badbg:#fbe4e1;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"Barlow Semi Condensed","Barlow",ui-monospace,monospace;
   --r:10px;
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#12161b; --surface:#1b2128; --ink:#e7eaee; --muted:#9aa6b2; --line:#2e3741;
-  --accent:#f2b705; --accent-ink:#12161b; --steel:#8fb3d4;
-  --ok:#4cc27f; --warn:#f0a63a; --bad:#ff7a69; --okbg:#173326; --warnbg:#3a2c12; --badbg:#3d1d19; color-scheme:dark;}}
+  --bg:#10171c; --surface:#18222a; --ink:#e6ebef; --muted:#8f9daa; --line:#283540;
+  --accent:#ffbf33; --accent-ink:#17232d; --steel:#1c2933;
+  --ok:#4cc488; --warn:#f2a93b; --bad:#ff7d6c; --okbg:#143225; --warnbg:#3a2b10; --badbg:#3c1c18; color-scheme:dark;}}
 :root[data-theme="dark"]{
-  --bg:#12161b; --surface:#1b2128; --ink:#e7eaee; --muted:#9aa6b2; --line:#2e3741;
-  --accent:#f2b705; --accent-ink:#12161b; --steel:#8fb3d4;
-  --ok:#4cc27f; --warn:#f0a63a; --bad:#ff7a69; --okbg:#173326; --warnbg:#3a2c12; --badbg:#3d1d19; color-scheme:dark;}
+  --bg:#10171c; --surface:#18222a; --ink:#e6ebef; --muted:#8f9daa; --line:#283540;
+  --accent:#ffbf33; --accent-ink:#17232d; --steel:#1c2933;
+  --ok:#4cc488; --warn:#f2a93b; --bad:#ff7d6c; --okbg:#143225; --warnbg:#3a2b10; --badbg:#3c1c18; color-scheme:dark;}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--ink);font:15px/1.45 var(--f-body);display:flex;flex-direction:column}
@@ -193,6 +193,112 @@ img.thumb[data-big]{cursor:zoom-in}
 .stripe{height:6px;background:repeating-linear-gradient(135deg,var(--accent) 0 10px,var(--ink) 10px 20px);border-radius:3px;opacity:.85}
 .famrow{display:grid;grid-template-columns:1.4fr 1.6fr auto auto auto;gap:6px;align-items:center}
 @media (max-width:600px){.famrow{grid-template-columns:1fr 1fr}}
+/* ===== Design 2026 : plaque signalétique — aluminium, graphite, jaune signal ===== */
+:root{--teal:#1d6a84;--plate:#ffb81c;--plate-dk:#e09c00;--r:14px;--r-s:10px;--shadow:0 1px 2px rgba(23,35,45,.06),0 8px 24px -12px rgba(23,35,45,.18);--f-num:"Barlow Semi Condensed","Barlow",system-ui,sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--teal:#62b4cc;--plate:#ffbf33;--plate-dk:#e8a512;--shadow:0 1px 2px rgba(0,0,0,.3),0 10px 28px -14px rgba(0,0,0,.6)}}
+:root[data-theme="dark"]{--teal:#62b4cc;--plate:#ffbf33;--plate-dk:#e8a512;--shadow:0 1px 2px rgba(0,0,0,.3),0 10px 28px -14px rgba(0,0,0,.6)}
+body{font-size:15.5px;letter-spacing:.005em;-webkit-font-smoothing:antialiased}
+h1,h2{font-family:var(--f-num);font-weight:700;letter-spacing:.01em}
+h2{font-size:21px} h3{font-size:16px;font-weight:700}
+.mono,.codes{font-family:var(--f-num);font-variant-numeric:tabular-nums;letter-spacing:.04em}
+:focus-visible{outline:3px solid var(--teal);outline-offset:2px}
+
+/* barre haute graphite */
+.top,:root[data-theme="dark"] .top{background:var(--steel);box-shadow:0 1px 0 rgba(255,255,255,.04)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .top{background:var(--steel)}}
+.brand{font-family:var(--f-num);font-size:18px;letter-spacing:.02em}
+.brand i,.auth .brand i{width:18px;height:18px;border-radius:5px;background:radial-gradient(circle at 4px 4px,rgba(23,35,45,.55) 1.2px,transparent 1.6px),radial-gradient(circle at 14px 14px,rgba(23,35,45,.55) 1.2px,transparent 1.6px),var(--plate)}
+.ctx button{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:var(--r-s);padding:7px 12px;transition:background .15s}
+.ctx button:hover{background:rgba(255,255,255,.11)}
+.ctx button small{text-transform:none;letter-spacing:0;font-weight:500;opacity:.65;font-size:12px}
+.ctx button b{font-family:var(--f-num);font-size:16px;font-weight:600;letter-spacing:.01em}
+.ctx button.need{background:var(--plate);border-color:var(--plate);color:#17232d}
+.ia{border-color:rgba(255,255,255,.2)}
+.me .av{background:var(--plate);color:#17232d;font-family:var(--f-num)}
+
+/* contenu */
+main{padding:16px 16px 24px;gap:16px}
+.wrap{gap:16px}
+.card{border-radius:var(--r);padding:16px;gap:12px;border-color:var(--line)}
+.stripe{height:4px;background:linear-gradient(90deg,var(--plate) 0 64px,transparent 64px);opacity:1;border-radius:2px}
+
+/* boutons */
+.btn{border-radius:var(--r-s);padding:10px 16px;min-height:42px;font-weight:600;transition:background .15s,border-color .15s}
+.btn.sm{min-height:34px;padding:6px 12px;border-radius:8px}
+.btn.primary{background:var(--plate);border-color:var(--plate);color:#17232d}
+.btn.primary:hover{background:var(--plate-dk);border-color:var(--plate-dk)}
+.btn.ghost:hover{background:var(--bg)}
+.btn.danger:hover{background:var(--badbg)}
+
+/* grandes actions : la photo de plaque est la « plaque » de l'appli */
+.big{border-radius:var(--r);padding:16px 18px;gap:3px;transition:border-color .15s,transform .1s}
+.big:hover{border-color:var(--muted)}
+.big:active{transform:scale(.99)}
+.big strong{font-family:var(--f-num);font-size:19px;font-weight:600;letter-spacing:.01em}
+.big svg{width:28px;height:28px;margin-bottom:6px;color:var(--teal)}
+.big.primary{position:relative;padding:22px 22px 20px;border:0;color:#17232d;box-shadow:inset 0 0 0 1px rgba(23,35,45,.12),inset 0 -3px 0 rgba(23,35,45,.12),var(--shadow);
+  background:radial-gradient(circle at 12px 12px,rgba(23,35,45,.35) 2px,transparent 2.6px),radial-gradient(circle at calc(100% - 12px) 12px,rgba(23,35,45,.35) 2px,transparent 2.6px),
+  radial-gradient(circle at 12px calc(100% - 12px),rgba(23,35,45,.35) 2px,transparent 2.6px),radial-gradient(circle at calc(100% - 12px) calc(100% - 12px),rgba(23,35,45,.35) 2px,transparent 2.6px),
+  linear-gradient(180deg,#ffc94d,var(--plate))}
+.big.primary strong{font-size:23px;font-weight:700}
+.big.primary svg{width:34px;height:34px;color:#17232d}
+.big.primary:hover{filter:brightness(.98)}
+
+/* formulaires : grandes cibles pour le pouce et les gants */
+label.f,.fq{font-size:13px;font-weight:600;gap:6px}
+input[type=text],input[type=number],input[type=search],input[type=date],input[type=email],input[type=password],select,textarea{min-height:46px;border-radius:var(--r-s);background:var(--surface);border:1px solid var(--line);padding:10px 12px;transition:border-color .15s,box-shadow .15s}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px color-mix(in srgb,var(--teal) 22%,transparent)}
+.stepper button{width:50px;border-radius:var(--r-s);font-size:22px}
+.stepper input{font-family:var(--f-num);font-size:20px}
+
+/* chiffres */
+.kpis{gap:10px}
+.kpis div{background:var(--bg);border:0;border-radius:var(--r-s);padding:10px 12px}
+.kpis b{font-family:var(--f-num);font-size:28px;font-weight:600;line-height:1.05}
+.kpis span{font-size:12px;font-weight:500}
+.tiles{gap:12px}
+.tile,.tile.ok,.tile.warn,.tile.bad{border-radius:var(--r);border:1px solid var(--line);padding:12px 14px 12px 18px;position:relative;overflow:hidden}
+.tile::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--line)}
+.tile.ok::before{background:var(--ok)} .tile.warn::before{background:var(--warn)} .tile.bad::before{background:var(--bad)}
+.tile .v{font-family:var(--f-num);font-size:34px;font-weight:600;line-height:1.05}
+.tile .l{font-size:12.5px;font-weight:500}
+
+/* tableaux, listes, pastilles */
+.tbl-wrap{border-radius:var(--r)}
+th{font-weight:600;font-size:12.5px}
+td,th{padding:10px 12px}
+.sitem{border-radius:var(--r);padding:12px;gap:12px}
+.sitem .thumb,.thumb{border-radius:8px}
+.pill{padding:3px 9px;font-weight:600}
+.alert{border-radius:var(--r-s);border-left-width:4px;padding:11px 13px}
+.alert.qual{border-left-color:var(--warn);background:var(--warnbg)}
+.seg{border-radius:var(--r-s);padding:3px;gap:3px;background:var(--bg)}
+.seg button{border-radius:8px;background:transparent}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(23,35,45,.15)}
+
+/* onglets : l'onglet actif porte une petite plaque jaune */
+.tabs{background:var(--surface);border-top:1px solid var(--line);box-shadow:0 -6px 18px -14px rgba(23,35,45,.35)}
+.tabs button{border-top:0;padding:8px 4px 10px;gap:3px;font-weight:500;transition:color .15s}
+.tabs button svg{width:44px;height:28px;padding:4px 11px;border-radius:999px;transition:background .15s}
+.tabs button[aria-current="page"]{color:var(--ink);font-weight:700}
+.tabs button[aria-current="page"] svg{background:var(--plate);color:#17232d}
+
+/* fenêtres */
+.modal,.dlg{background:rgba(15,22,28,.55);backdrop-filter:blur(2px)}
+.sheet{border-radius:20px 20px 0 0;padding:18px;box-shadow:0 -10px 40px -10px rgba(0,0,0,.35)}
+.sheet::before{content:"";display:block;width:44px;height:5px;border-radius:3px;background:var(--line);margin:-6px auto 4px;flex:none}
+@media (min-width:760px){.sheet{border-radius:20px}.sheet::before{display:none}}
+.sheet-head{border-bottom:1px solid var(--line)}
+.val .pics img{border-radius:var(--r-s)}
+.dlg .box,.auth .box{border-radius:18px;box-shadow:var(--shadow)}
+.auth{background:linear-gradient(180deg,var(--steel) 0 38%,var(--bg) 38%)}
+.auth .box{padding:26px;gap:14px}
+.auth .brand{font-size:24px}
+#toast div{border-radius:12px;padding:11px 16px;font-weight:500}
+#toast div.ok{background:#17855a;color:#fff} #toast div.bad{background:#c4342b;color:#fff}
+#toast button{text-transform:none;letter-spacing:0;font-size:14px}
+.zone-card.cur{outline:2px solid var(--plate);outline-offset:-1px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
@@ -524,9 +630,34 @@ function enhanced(src){const c=scaled(src,src.width);const x=c.getContext('2d');
   const n=a.length/4;let lo=0,hi=255,acc=0;for(let i=0;i<256;i++){acc+=h[i];if(acc>n*.01){lo=i;break}}acc=0;for(let i=255;i>=0;i--){acc+=h[i];if(acc>n*.01){hi=i;break}}
   const k=255/Math.max(1,hi-lo);for(let i=0;i<a.length;i+=4){const v=Math.max(0,Math.min(255,(a[i]-lo)*k));a[i]=a[i+1]=a[i+2]=v}
   x.putImageData(d,0,0);return c}
+/* qualité de la photo : netteté, lumière, reflets (mesurée sur une copie de 400 px) */
+function photoQuality(src){
+  const c=scaled(src,400),w=c.width,h=c.height,d=c.getContext('2d').getImageData(0,0,w,h).data,g=new Float32Array(w*h);
+  let s=0,s2=0,hi=0;for(let i=0,j=0;i<d.length;i+=4,j++){const v=.299*d[i]+.587*d[i+1]+.114*d[i+2];g[j]=v;s+=v;s2+=v*v;if(v>=250)hi++}
+  const n=w*h,mean=s/n,std=Math.sqrt(Math.max(0,s2/n-mean*mean));
+  let ls=0,ls2=0,m=0;for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const k=y*w+x,L=g[k-w]+g[k+w]+g[k-1]+g[k+1]-4*g[k];ls+=L;ls2+=L*L;m++}
+  const lap=m?ls2/m-(ls/m)**2:0,warn=[];
+  if(mean<60)warn.push('Photo sombre : éclairez la plaque ou rapprochez-vous de la lumière.');
+  else if(hi/n>.25)warn.push('Reflet ou photo trop claire : inclinez un peu le téléphone.');
+  if(lap<50&&mean>=60)warn.push('Photo floue : tenez le téléphone immobile, plus près de la plaque.');
+  if(std<18&&mean>=60)warn.push('Photo peu contrastée.');
+  return {mean:Math.round(mean),std:Math.round(std),lap:Math.round(lap),warn,fix:mean<90||std<35};
+}
+/* correction automatique lumière / contraste pour la lecture IA (couleurs gardées) */
+function autoLevels(src){
+  const c=scaled(src,src.width),x=c.getContext('2d'),img=x.getImageData(0,0,c.width,c.height),a=img.data,hist=new Uint32Array(256);
+  for(let i=0;i<a.length;i+=4)hist[(.299*a[i]+.587*a[i+1]+.114*a[i+2])|0]++;
+  const n=a.length/4;let lo=0,hi=255,acc=0;for(let i=0;i<256;i++){acc+=hist[i];if(acc>n*.01){lo=i;break}}acc=0;for(let i=255;i>=0;i--){acc+=hist[i];if(acc>n*.01){hi=i;break}}
+  const k=1/Math.max(1,hi-lo),lut=new Uint8ClampedArray(256);for(let v=0;v<256;v++)lut[v]=Math.round(255*Math.pow(Math.max(0,Math.min(1,(v-lo)*k)),.85));
+  for(let i=0;i<a.length;i+=4){a[i]=lut[a[i]];a[i+1]=lut[a[i+1]];a[i+2]=lut[a[i+2]]}
+  x.putImageData(img,0,0);return c}
 async function prepImage(file){
   const bmp=await loadBitmap(file);const big=scaled(bmp,1600);const th=scaled(bmp,360);
-  const out={big,blob:await toBlob(big,.85),aiBlob:await toBlob(scaled(bmp,1280),.75),thumb:th.toDataURL('image/jpeg',.6),preview:URL.createObjectURL(file)};
+  const quality=photoQuality(big);
+  // une seule image de 1600 px : petits caractères lisibles, taille limitée (~600 Ko au plus)
+  let blob=await toBlob(big,.82);if(blob.size>600000)blob=await toBlob(big,.7);
+  const aiBlob=quality.fix?await toBlob(autoLevels(big),.82):blob;
+  const out={big,blob,aiBlob,quality,thumb:th.toDataURL('image/jpeg',.6),preview:URL.createObjectURL(file)};
   if(S.enhance){out.enh=enhanced(big);out.enhBlob=await toBlob(out.enh,.9)}
   out.hash=await photoHash(file,bmp);
   return out;
@@ -571,7 +702,7 @@ const hasCarton=fam=>(fam.fields||[]).some(f=>f.key==='qte_carton');
 
 /* ================= lecture IA ================= */
 function parseJSON(t){if(t&&typeof t==='object')return t;const s=String(t||'');const a=s.indexOf('{'),b=s.lastIndexOf('}');if(a<0||b<a)throw new Error('Réponse IA illisible');return JSON.parse(s.slice(a,b+1))}
-const AI_MAX_MS=5000; // délai maximum d'attente de la lecture IA
+const AI_MAX_MS=10000; // délai maximum : au-delà de 10 s, saisie manuelle
 async function aiExtract({blobs,family,codes,answers,noLabel,maxMs}){
   if(!S.sample)return null;
   const fams=family?[family]:families();
@@ -597,7 +728,7 @@ Réponds UNIQUEMENT avec ce JSON :
   const opts={modelTier:'default'};
   if(blobs.length&&S.aiImages)opts.images=blobs.slice(0,6);
   try{const r=await Promise.race([S.sample(prompt,opts),new Promise((_,ko)=>setTimeout(()=>ko({code:'timeout'}),maxMs||AI_MAX_MS))]);return parseJSON(r.text)}
-  catch(e){if(e?.code==='not_granted'){S.sample=null;renderTop()}else if(e?.code==='timeout'||e?.code==='TIMEOUT')toast('IA trop lente (plus de 5 s) : saisie manuelle.','bad');else if(e?.code==='rate_limited')toast('IA momentanément saturée, saisissez à la main ou relancez dans un instant.','bad');else toast('Lecture IA impossible : '+(e?.message||e),'bad');return null}
+  catch(e){if(e?.code==='not_granted'){S.sample=null;renderTop()}else if(e?.code==='timeout'||e?.code==='TIMEOUT')toast('IA trop lente (plus de 10 s) : saisie manuelle','bad');else if(e?.code==='rate_limited')toast('IA momentanément saturée, saisissez à la main ou relancez dans un instant.','bad');else toast('Lecture IA impossible : '+(e?.message||e),'bad');return null}
 }
 
 /* ================= file de scan + validation ================= */
@@ -606,10 +737,10 @@ function nextInQueue(){if(S.qi>=S.queue.length){const n=S.queue.length;S.queue=[
   openValidation({files:[S.queue[S.qi]],idx:S.qi+1,total:S.queue.length})}
 
 async function analyse(ctx){
-  const t0=Date.now(); // tout le traitement (photo + IA) tient en 5 s, sinon saisie manuelle
+  const t0=Date.now(); // tout le traitement (photo + IA) tient en 10 s, sinon saisie manuelle
   const imgs=[];for(const f of ctx.files||[]){try{imgs.push(await prepImage(f))}catch(e){toast(e.message,'bad')}}
   const fixed=ctx.familyId&&ctx.familyId!=='auto'?famById(ctx.familyId):(S.scanFamily!=='auto'?famById(S.scanFamily):null);
-  // lecture des codes-barres et lecture IA en parallèle (IA : une image réduite par photo, réponse en 5 s max)
+  // lecture des codes-barres et lecture IA en parallèle (IA : une image de 1600 px par photo, réponse en 10 s max)
   const codesP=(async()=>{const codes=[];for(const im of imgs){(await readCodes(im.big)).forEach(c=>codes.push(c));if(im.enh&&!codes.length)(await readCodes(im.enh)).forEach(c=>codes.push(c))}return codes})();
   const blobs=imgs.map(im=>im.aiBlob||im.blob);
   const reste=()=>Math.max(0,AI_MAX_MS-(Date.now()-t0));
@@ -624,7 +755,7 @@ async function analyse(ctx){
   for(const k of uniqueKeys(fam))if(isGtin(fields[k])&&gs.gtin&&norm(fields[k])===norm(gs.gtin)){delete fields[k]} // un EAN n'est pas un n° de série
   if(!ai&&codes.length===1&&!Object.keys(gs).length){const uk=uniqueKeys(fam)[0];if(uk&&!fields[uk]){fields[uk]=codes[0].value;conf[uk]=.5}}
   const etat=String(ai?.etat||'').trim();
-  return {familyId:fam.id,fields,conf,qty:1,unit:'piece',codes,raw:ai?.texte_lu||'',remark:ai?.remarques||'',imgs,answers:ctx.answers||null,noLabel:!!ctx.noLabel,gtin:gs.gtin||null,usedAI:!!ai,
+  return {familyId:fam.id,fields,conf,qty:1,unit:'piece',codes,raw:ai?.texte_lu||'',remark:ai?.remarques||'',imgs,quality:[...new Set(imgs.flatMap(im=>im.quality?.warn||[]))],answers:ctx.answers||null,noLabel:!!ctx.noLabel,gtin:gs.gtin||null,usedAI:!!ai,
     etat,suggest:(fam.id==='generique'&&ai?.famille_suggeree&&ai.famille_suggeree.nom)?ai.famille_suggeree:null};
 }
 
@@ -667,6 +798,7 @@ function renderValidation(d){
   $('#sheet').innerHTML=`<div class="sheet-head"><h2>${esc(ctx.edit?'Modifier le comptage':(ctx.total>1?`Contrôle de la lecture · photo ${ctx.idx} / ${ctx.total}`:'Contrôle de la lecture'))}</h2><button class="btn ghost" id="vCancel">Fermer</button></div>
   <div class="val">
     <div class="pics">${pics||'<div class="alert info small">Pas de photo.</div>'}
+      ${(d.quality||[]).length?`<div class="alert small qual"><b>Qualité de la photo</b><br>${d.quality.map(esc).join('<br>')}<br><span class="muted">Reprenez la photo si un numéro est mal lu.</span></div>`:''}
       ${d.codes.length?`<div><div class="small muted">Codes lus</div>${d.codes.map(c=>`<div class="codes">${esc(c.format)} : ${esc(c.value)}</div>`).join('')}</div>`:''}
       ${d.gtin?`<div class="small">GTIN : <span class="mono">${esc(d.gtin)}</span></div>`:''}
       ${d.raw?`<details><summary>Texte lu sur la photo</summary><div class="small" style="white-space:pre-wrap">${esc(d.raw)}</div></details>`:''}
